@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ražošanas statistikas dati</title>
+  <title>Ražošanas Atsauce 2026</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
@@ -20,9 +20,12 @@
         <h1 class="text-4xl font-bold text-emerald-600">Ražošanas Atsauce 2026</h1>
         <p class="text-gray-600 dark:text-gray-400 mt-1">Fokuss uz pieaugumu salīdzinājumā ar 2025</p>
       </div>
+      <button onclick="toggleDarkMode()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center gap-2">
+        <i class="fas fa-moon"></i> <span id="theme-text">Dark Mode</span>
+      </button>
     </div>
 
-    <!-- Summary Cards -->
+    <!-- Dynamic Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10" id="summaryCards"></div>
 
     <!-- Charts -->
@@ -37,12 +40,9 @@
       </div>
     </div>
 
-    <!-- Main Table - Only 2026 -->
+    <!-- 2026 Table -->
     <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow overflow-hidden">
-      <h2 class="text-2xl font-semibold mb-6 flex items-center gap-3">
-        2026 Ražošanas rezultāti 
-        <span class="text-sm font-normal text-gray-500">(salīdzinājumā ar 2025)</span>
-      </h2>
+      <h2 class="text-2xl font-semibold mb-6">2026 Ražošanas rezultāti</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-sm" id="dataTable">
           <thead class="bg-gray-100 dark:bg-gray-700">
@@ -63,7 +63,7 @@
     </div>
 
     <div class="text-center text-gray-500 dark:text-gray-400 text-xs mt-12">
-      Dati automātiski ielādēti no Google Sheets • Atjaunini ar "Republish now"
+      Dati automātiski ielādēti no Google Sheets
     </div>
   </div>
 
@@ -72,6 +72,8 @@
 
     let data2026 = [];
     let data2025 = [];
+    let overallAvgGrowth = 47.34;   // fallback
+    let avgPerHour = 20.58;
 
     async function loadData() {
       try {
@@ -81,14 +83,12 @@
         renderAll();
       } catch (err) {
         console.error(err);
-        alert("Neizdevās ielādēt datus. Pārbaudi CSV publicēšanas saiti.");
+        alert("Neizdevās ielādēt datus no CSV.");
       }
     }
 
     function parseCSV(csvText) {
-      const rows = csvText.trim().split('\n').map(r => 
-        r.split(',').map(cell => cell.replace(/"/g, '').trim())
-      );
+      const rows = csvText.trim().split('\n').map(r => r.split(',').map(c => c.replace(/"/g, '').trim()));
 
       data2026 = [];
       data2025 = [];
@@ -111,42 +111,54 @@
           const total = parseFloat(row[6]) || 0;
 
           let growth = 0;
-          // Look for growth percentage in nearby cells
-          for (let j = 7; j < Math.min(row.length, 15); j++) {
+          for (let j = 7; j < row.length; j++) {
             const num = parseFloat(row[j]);
-            if (!isNaN(num) && num > 0 && num < 1000) {
+            if (!isNaN(num) && num > 0 && num < 500) {   // reasonable growth range
               growth = num;
               break;
             }
           }
 
-          const entry = { 
-            month: currentMonth, 
-            pkg250, pkg1kg, pkgBundza, pkg500, pkg3kg, 
-            total, growth 
-          };
+          const entry = { month: currentMonth, pkg250, pkg1kg, pkgBundza, pkg500, pkg3kg, total, growth };
 
           if (year === "2026") data2026.push(entry);
-          else if (year === "2025") data2025.push(entry);
+          if (year === "2025") data2025.push(entry);
+        }
+
+        // Try to extract overall average growth and per hour from top of sheet
+        if (row.join('').includes("Vidējais ražošanas pieaugums")) {
+          const match = row.join(' ').match(/(\d+\.?\d*)/);
+          if (match) overallAvgGrowth = parseFloat(match[1]);
+        }
+        if (row.join('').includes("Stundā") && row.join('').includes("Viens")) {
+          const match = row.join(' ').match(/(\d+\.?\d*)/);
+          if (match) avgPerHour = parseFloat(match[1]);
         }
       }
     }
 
     function renderAll() {
-      renderSummary();
+      renderDynamicSummary();
       renderTable();
       renderCharts();
     }
 
-    function renderSummary() {
+    function renderDynamicSummary() {
+      const avgGrowth = overallAvgGrowth || 47.34;
+      const avgHour = avgPerHour || 20.58;
+
+      // Calculate simple averages from 2026 data
+      const avgTotal2026 = data2026.length ? 
+        (data2026.reduce((sum, item) => sum + item.total, 0) / data2026.length).toFixed(0) : "~1800";
+
       const html = `
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
           <div class="text-emerald-600 text-sm font-medium">Vidējais pieaugums 2026</div>
-          <div class="text-5xl font-bold mt-2 text-emerald-600">+47.34%</div>
+          <div class="text-5xl font-bold mt-2 text-emerald-600">+${avgGrowth}%</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
           <div class="text-blue-600 text-sm font-medium">Vidēji stundā (1 cilvēks)</div>
-          <div class="text-5xl font-bold mt-2">20.58</div>
+          <div class="text-5xl font-bold mt-2">${avgHour}</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
           <div class="text-amber-600 text-sm font-medium">Vidēji dienā (1 cilvēks)</div>
@@ -154,7 +166,7 @@
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
           <div class="text-purple-600 text-sm font-medium">Vidēji mēnesī (1 cilvēks)</div>
-          <div class="text-5xl font-bold mt-2">~1,800</div>
+          <div class="text-5xl font-bold mt-2">${avgTotal2026}</div>
         </div>
       `;
       document.getElementById("summaryCards").innerHTML = html;
@@ -166,7 +178,7 @@
 
       data2026.forEach(item => {
         const tr = document.createElement("tr");
-        tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors";
+        tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700";
         tr.innerHTML = `
           <td class="py-4 font-medium">${item.month}</td>
           <td class="text-right">${item.pkg250.toLocaleString('lv-LV')}</td>
@@ -175,7 +187,7 @@
           <td class="text-right">${item.pkg500.toLocaleString('lv-LV')}</td>
           <td class="text-right">${item.pkg3kg.toLocaleString('lv-LV')}</td>
           <td class="text-right font-bold">${item.total.toLocaleString('lv-LV')}</td>
-          <td class="text-right text-emerald-600 font-semibold">${item.growth ? '+' + item.growth.toFixed(2) + '%' : '-'}</td>
+          <td class="text-right text-emerald-600 font-semibold">+${item.growth.toFixed(2)}%</td>
         `;
         tbody.appendChild(tr);
       });
@@ -185,9 +197,8 @@
       const months = data2026.map(d => d.month);
       const totals2025 = data2025.map(d => d.total);
       const totals2026 = data2026.map(d => d.total);
-      const growthValues = data2026.map(d => d.growth);
+      const growths = data2026.map(d => d.growth);
 
-      // Total packages comparison
       new Chart(document.getElementById('totalChart'), {
         type: 'bar',
         data: {
@@ -197,22 +208,19 @@
             { label: '2026', data: totals2026, backgroundColor: '#10b981' }
           ]
         },
-        options: { responsive: true, plugins: { legend: { position: 'top' }}}
+        options: { responsive: true }
       });
 
-      // Growth percentage
       new Chart(document.getElementById('growthChart'), {
         type: 'line',
         data: {
           labels: months,
           datasets: [{
             label: 'Pieaugums %',
-            data: growthValues,
+            data: growths,
             borderColor: '#eab308',
-            backgroundColor: 'rgba(234, 179, 8, 0.1)',
             tension: 0.4,
-            borderWidth: 5,
-            pointRadius: 6
+            borderWidth: 5
           }]
         },
         options: { responsive: true }
@@ -225,7 +233,6 @@
         document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
     }
 
-    // Load everything
     window.onload = loadData;
   </script>
 </body>
