@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ražošanas Atsauce 2024/25</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <style>
+    body { font-family: system-ui, sans-serif; }
+    .card { transition: all 0.3s ease; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+  <div class="max-w-7xl mx-auto p-6">
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold">Ražošanas Atsauce 2024/25</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Iepakojumu ražošanas dati un efektivitāte</p>
+      </div>
+      <button onclick="toggleDarkMode()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center gap-2">
+        <i class="fas fa-moon"></i> <span id="theme-text">Dark Mode</span>
+      </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+        <div class="text-emerald-600 dark:text-emerald-400 text-sm font-medium">Vidējais pieaugums</div>
+        <div class="text-5xl font-bold mt-2">+47.34%</div>
+        <div class="text-gray-500 dark:text-gray-400 mt-1">salīdzinot ar iepriekšējo periodu</div>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+        <div class="text-blue-600 dark:text-blue-400 text-sm font-medium">Vidēji stundā (viens cilvēks)</div>
+        <div class="text-5xl font-bold mt-2">20.58</div>
+        <div class="text-gray-500 dark:text-gray-400 mt-1">iepakojumi</div>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+        <div class="text-amber-600 dark:text-amber-400 text-sm font-medium">Marts (kopā)</div>
+        <div class="text-4xl font-bold mt-2">160.12%</div>
+        <div class="text-gray-500 dark:text-gray-400 mt-1">pieaugums</div>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+        <div class="text-purple-600 dark:text-purple-400 text-sm font-medium">Vidēji mēnesī (1 darbinieks)</div>
+        <div class="text-4xl font-bold mt-2">~1,720</div>
+        <div class="text-gray-500 dark:text-gray-400 mt-1">iepakojumi</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+      <!-- Package Types Bar Chart -->
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
+        <h2 class="text-xl font-semibold mb-4">Iepakojumi pa veidiem (Mēneši)</h2>
+        <canvas id="packagesChart" height="120"></canvas>
+      </div>
+
+      <!-- Growth Chart -->
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
+        <h2 class="text-xl font-semibold mb-4">Pieaugums % pa mēnešiem</h2>
+        <canvas id="growthChart" height="120"></canvas>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow overflow-hidden">
+      <h2 class="text-xl font-semibold mb-4">Dati pa mēnešiem</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              <th class="px-4 py-3 text-left">Mēnesis</th>
+              <th class="px-4 py-3 text-right">250g</th>
+              <th class="px-4 py-3 text-right">1kg</th>
+              <th class="px-4 py-3 text-right">Bundža</th>
+              <th class="px-4 py-3 text-right">500g</th>
+              <th class="px-4 py-3 text-right">3kg</th>
+              <th class="px-4 py-3 text-right font-bold">Kopā</th>
+              <th class="px-4 py-3 text-right">Pieaugums %</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 dark:divide-gray-700" id="dataBody">
+            <!-- Filled by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="text-center text-gray-500 dark:text-gray-400 text-xs mt-10">
+      Ražošanas atsauce 2024/25 • Atverams jebkurā pārlūkā
+    </div>
+  </div>
+
+  <script>
+    // Sample data from your sheet (replace with full parsed data later)
+    const months = ["Janvāris", "Februāris", "Marts"];
+    const growth = [18.99, 199.18, 160.12];
+    const totals = [7726, 6986, 807295]; // approximate from your paste - update with exact
+
+    // Tailwind script already loaded
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const text = document.getElementById('theme-text');
+      text.textContent = document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
+    }
+
+    // Bar Chart - Packages
+    new Chart(document.getElementById('packagesChart'), {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [{
+          label: 'Kopā iepakojumi',
+          data: totals,
+          backgroundColor: '#10b981',
+          borderRadius: 8,
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    // Line Chart - Growth
+    new Chart(document.getElementById('growthChart'), {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets: [{
+          label: 'Pieaugums %',
+          data: growth,
+          borderColor: '#eab308',
+          tension: 0.4,
+          borderWidth: 4
+        }]
+      },
+      options: { responsive: true }
+    });
+
+    // Simple table (you can expand this)
+    const tbody = document.getElementById('dataBody');
+    months.forEach((m, i) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="px-4 py-4 font-medium">${m}</td>
+        <td class="px-4 py-4 text-right">—</td>
+        <td class="px-4 py-4 text-right">—</td>
+        <td class="px-4 py-4 text-right">—</td>
+        <td class="px-4 py-4 text-right">—</td>
+        <td class="px-4 py-4 text-right">—</td>
+        <td class="px-4 py-4 text-right font-bold">${totals[i].toLocaleString('lv-LV')}</td>
+        <td class="px-4 py-4 text-right text-emerald-600">+${growth[i]}%</td>
+      `;
+      tbody.appendChild(row);
+    });
+  </script>
+</body>
+</html>
