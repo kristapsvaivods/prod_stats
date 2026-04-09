@@ -18,7 +18,7 @@
     <div class="flex justify-between items-center mb-8">
       <div>
         <h1 class="text-4xl font-bold text-emerald-600">Ražošanas Atsauce 2026</h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">Fokuss uz pieaugumu salīdzinājumā ar 2025</p>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Pieaugums % tiek aprēķināts automātiski (2026 vs 2025)</p>
       </div>
       <button onclick="toggleDarkMode()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center gap-2">
         <i class="fas fa-moon"></i> <span id="theme-text">Dark Mode</span>
@@ -40,9 +40,9 @@
       </div>
     </div>
 
-    <!-- 2026 Table -->
+    <!-- 2026 Table with calculated % -->
     <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow overflow-hidden">
-      <h2 class="text-2xl font-semibold mb-6">2026 Ražošanas rezultāti</h2>
+      <h2 class="text-2xl font-semibold mb-6">2026 Ražošanas rezultāti ar aprēķinātu pieaugumu</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-sm" id="dataTable">
           <thead class="bg-gray-100 dark:bg-gray-700">
@@ -53,7 +53,7 @@
               <th class="text-right">Bundža</th>
               <th class="text-right">500g</th>
               <th class="text-right">3kg</th>
-              <th class="text-right font-bold">Kopā</th>
+              <th class="text-right font-bold">Kopā 2026</th>
               <th class="text-right text-emerald-600">Pieaugums %</th>
             </tr>
           </thead>
@@ -63,7 +63,7 @@
     </div>
 
     <div class="text-center text-gray-500 dark:text-gray-400 text-xs mt-12">
-      Dati un aprēķini tiek veikti automātiski no Google Sheets
+      Pieaugums % aprēķināts automātiski: (2026 - 2025) / 2025 × 100
     </div>
   </div>
 
@@ -81,7 +81,7 @@
         renderAll();
       } catch (err) {
         console.error(err);
-        alert("Neizdevās ielādēt CSV. Pārbaudi, vai saite ir pareiza un publicēta kā CSV.");
+        alert("Neizdevās ielādēt datus. Pārbaudi CSV saiti.");
       }
     }
 
@@ -94,43 +94,42 @@
       data2025 = [];
       let currentMonth = "";
 
+      const monthNames = ["Janvāris","Februāris","Marts","Aprīlis","Maijs","Jūnijs","Jūlijs","Augusts","Septembris","Oktobris","Novembris","Decembris"];
+
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
 
-        // Detect month name
-        const monthNames = ["Janvāris","Februāris","Marts","Aprīlis","Maijs","Jūnijs","Jūlijs","Augusts","Septembris","Oktobris","Novembris","Decembris"];
         if (monthNames.includes(row[0])) currentMonth = row[0];
 
-        // Detect year rows (2025 or 2026)
         if (row[0] === "2025" || row[0] === "2026") {
           const year = row[0];
-          const pkg250  = parseFloat(row[1]) || 0;
-          const pkg1kg  = parseFloat(row[2]) || 0;
+          const pkg250 = parseFloat(row[1]) || 0;
+          const pkg1kg = parseFloat(row[2]) || 0;
           const pkgBundza = parseFloat(row[3]) || 0;
-          const pkg500  = parseFloat(row[4]) || 0;
-          const pkg3kg  = parseFloat(row[5]) || 0;
-          const total   = parseFloat(row[6]) || 0;
+          const pkg500 = parseFloat(row[4]) || 0;
+          const pkg3kg = parseFloat(row[5]) || 0;
+          const total = parseFloat(row[6]) || 0;
 
-          let growth = 0;
-          for (let j = 7; j < row.length; j++) {
-            const val = parseFloat(row[j]);
-            if (!isNaN(val) && val > 0 && val < 1000) {
-              growth = val;
-              break;
-            }
-          }
-
-          const entry = {
-            month: currentMonth,
-            pkg250, pkg1kg, pkgBundza, pkg500, pkg3kg,
-            total: total,
-            growth: growth
+          const entry = { 
+            month: currentMonth, 
+            pkg250, pkg1kg, pkgBundza, pkg500, pkg3kg, 
+            total 
           };
 
           if (year === "2026") data2026.push(entry);
           if (year === "2025") data2025.push(entry);
         }
       }
+
+      // Match months and calculate Pieaugums % 
+      data2026.forEach(item2026 => {
+        const match2025 = data2025.find(item => item.month === item2026.month);
+        if (match2025 && match2025.total > 0) {
+          item2026.growth = ((item2026.total - match2025.total) / match2025.total) * 100;
+        } else {
+          item2026.growth = 0;
+        }
+      });
     }
 
     function renderAll() {
@@ -142,11 +141,8 @@
     function renderDynamicSummary() {
       if (data2026.length === 0) return;
 
-      // Calculate averages from 2026 data
-      const totalPackages2026 = data2026.reduce((sum, m) => sum + m.total, 0);
-      const avgMonthly2026 = (totalPackages2026 / data2026.length).toFixed(0);
-
       const avgGrowth = data2026.reduce((sum, m) => sum + m.growth, 0) / data2026.length;
+      const avgMonthly = (data2026.reduce((sum, m) => sum + m.total, 0) / data2026.length).toFixed(0);
 
       const html = `
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
@@ -163,7 +159,7 @@
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
           <div class="text-purple-600 text-sm font-medium">Vidēji mēnesī (1 cilvēks)</div>
-          <div class="text-5xl font-bold mt-2">${avgMonthly2026}</div>
+          <div class="text-5xl font-bold mt-2">${avgMonthly}</div>
         </div>
       `;
       document.getElementById("summaryCards").innerHTML = html;
@@ -175,7 +171,7 @@
 
       data2026.forEach(item => {
         const tr = document.createElement("tr");
-        tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors";
+        tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700";
         tr.innerHTML = `
           <td class="py-4 font-medium">${item.month}</td>
           <td class="text-right">${item.pkg250.toLocaleString('lv-LV')}</td>
@@ -184,7 +180,7 @@
           <td class="text-right">${item.pkg500.toLocaleString('lv-LV')}</td>
           <td class="text-right">${item.pkg3kg.toLocaleString('lv-LV')}</td>
           <td class="text-right font-bold">${item.total.toLocaleString('lv-LV')}</td>
-          <td class="text-right text-emerald-600 font-semibold">+${item.growth.toFixed(2)}%</td>
+          <td class="text-right text-emerald-600 font-semibold">${item.growth >= 0 ? '+' : ''}${item.growth.toFixed(2)}%</td>
         `;
         tbody.appendChild(tr);
       });
@@ -196,7 +192,6 @@
       const totals2026 = data2026.map(d => d.total);
       const growths = data2026.map(d => d.growth);
 
-      // Total packages chart
       new Chart(document.getElementById('totalChart'), {
         type: 'bar',
         data: {
@@ -209,7 +204,6 @@
         options: { responsive: true }
       });
 
-      // Growth chart
       new Chart(document.getElementById('growthChart'), {
         type: 'line',
         data: {
@@ -233,7 +227,6 @@
         document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
     }
 
-    // Start
     window.onload = loadData;
   </script>
 </body>
