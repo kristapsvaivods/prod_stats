@@ -63,7 +63,7 @@
     </div>
 
     <div class="text-center text-gray-500 dark:text-gray-400 text-xs mt-12">
-      Duplikāti automātiski noņemti • Aprēķini notiek tiešsaistē
+      Janvāris, Februāris un Marts tagad redzami grafikos
     </div>
   </div>
 
@@ -82,7 +82,7 @@
         parseCSV(text);
         renderAll();
       } catch (e) {
-        alert("Neizdevās ielādēt datus.");
+        alert("Neizdevās ielādēt datus no CSV.");
       }
     }
 
@@ -110,17 +110,17 @@
             pkg3kg: parseFloat(row[5]) || 0
           };
 
-          // Keep only the LAST occurrence of each month (most recent data)
+          // Keep the last (most recent) entry for each month
           if (year === "2026") temp2026[currentMonth] = entry;
           if (year === "2025") temp2025[currentMonth] = entry;
         }
       }
 
-      // Convert back to arrays and sort January first
-      data2026 = Object.values(temp2026).sort((a,b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
-      data2025 = Object.values(temp2025).sort((a,b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+      // Convert to arrays and sort from January to December
+      data2026 = Object.values(temp2026).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+      data2025 = Object.values(temp2025).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
 
-      // Calculate growth %
+      // Calculate growth % (2026 vs 2025)
       data2026.forEach(item => {
         const prev = data2025.find(m => m.month === item.month);
         if (prev && prev.total > 0) {
@@ -188,35 +188,45 @@
 
     function renderCharts() {
       const months = data2026.map(d => d.month);
-      const totals2025 = data2025.map(d => d.total);
+      const totals2025 = data2025.map(d => d.total || 0);
       const totals2026 = data2026.map(d => d.total);
       const growths = data2026.map(d => d.growth || 0);
 
+      // Total packages chart
       new Chart(document.getElementById('totalChart'), {
         type: 'bar',
-        data: { labels: months, datasets: [
-          { label: '2025', data: totals2025, backgroundColor: '#9ca3af' },
-          { label: '2026', data: totals2026, backgroundColor: '#10b981' }
-        ]},
+        data: {
+          labels: months,
+          datasets: [
+            { label: '2025', data: totals2025, backgroundColor: '#9ca3af' },
+            { label: '2026', data: totals2026, backgroundColor: '#10b981' }
+          ]
+        },
         options: { responsive: true }
       });
 
+      // Growth chart
       new Chart(document.getElementById('growthChart'), {
         type: 'line',
-        data: { labels: months, datasets: [{
-          label: 'Pieaugums %',
-          data: growths,
-          borderColor: '#eab308',
-          tension: 0.4,
-          borderWidth: 5
-        }]},
+        data: {
+          labels: months,
+          datasets: [{
+            label: 'Pieaugums %',
+            data: growths,
+            borderColor: '#eab308',
+            tension: 0.4,
+            borderWidth: 5,
+            pointRadius: 5
+          }]
+        },
         options: { responsive: true }
       });
     }
 
     function toggleDarkMode() {
       document.documentElement.classList.toggle('dark');
-      document.getElementById('theme-text').textContent = document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
+      document.getElementById('theme-text').textContent = 
+        document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
     }
 
     window.onload = loadData;
