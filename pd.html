@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="lv">
-<head
-  
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ražošanas Atsauce 2024/25</title>
@@ -27,50 +26,28 @@
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-        <div class="text-emerald-600 dark:text-emerald-400 text-sm font-medium">Vidējais pieaugums</div>
-        <div class="text-5xl font-bold mt-2">+47.34%</div>
-        <div class="text-gray-500 dark:text-gray-400 mt-1">salīdzinot ar iepriekšējo periodu</div>
-      </div>
-      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-        <div class="text-blue-600 dark:text-blue-400 text-sm font-medium">Vidēji stundā (viens cilvēks)</div>
-        <div class="text-5xl font-bold mt-2">20.58</div>
-        <div class="text-gray-500 dark:text-gray-400 mt-1">iepakojumi</div>
-      </div>
-      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-        <div class="text-amber-600 dark:text-amber-400 text-sm font-medium">Marts (kopā)</div>
-        <div class="text-4xl font-bold mt-2">160.12%</div>
-        <div class="text-gray-500 dark:text-gray-400 mt-1">pieaugums</div>
-      </div>
-      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-        <div class="text-purple-600 dark:text-purple-400 text-sm font-medium">Vidēji mēnesī (1 darbinieks)</div>
-        <div class="text-4xl font-bold mt-2">~1,720</div>
-        <div class="text-gray-500 dark:text-gray-400 mt-1">iepakojumi</div>
-      </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10" id="summaryCards">
+      <!-- Filled by JS -->
     </div>
 
     <!-- Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-      <!-- Package Types Bar Chart -->
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Iepakojumi pa veidiem (Mēneši)</h2>
-        <canvas id="packagesChart" height="120"></canvas>
+        <h2 class="text-xl font-semibold mb-4">Iepakojumi pa veidiem (2025 vs 2026)</h2>
+        <canvas id="packagesChart" height="140"></canvas>
       </div>
-
-      <!-- Growth Chart -->
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
         <h2 class="text-xl font-semibold mb-4">Pieaugums % pa mēnešiem</h2>
-        <canvas id="growthChart" height="120"></canvas>
+        <canvas id="growthChart" height="140"></canvas>
       </div>
     </div>
 
     <!-- Data Table -->
     <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow overflow-hidden">
-      <h2 class="text-xl font-semibold mb-4">Dati pa mēnešiem</h2>
+      <h2 class="text-xl font-semibold mb-4">Dati pa mēnešiem (2025 / 2026)</h2>
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-100 dark:bg-gray-700">
+        <table class="w-full text-sm" id="dataTable">
+          <thead class="bg-gray-100 dark:bg-gray-700 sticky top-0">
             <tr>
               <th class="px-4 py-3 text-left">Mēnesis</th>
               <th class="px-4 py-3 text-right">250g</th>
@@ -90,17 +67,165 @@
     </div>
 
     <div class="text-center text-gray-500 dark:text-gray-400 text-xs mt-10">
-      Ražošanas atsauce 2024/25 • Atverams jebkurā pārlūkā
+      Ražošanas atsauce 2024/25 • Dati tiek ielādēti automātiski no Google Sheets
     </div>
   </div>
 
   <script>
-    // Sample data from your sheet (replace with full parsed data later)
-    const months = ["Janvāris", "Februāris", "Marts"];
-    const growth = [18.99, 199.18, 160.12];
-    const totals = [7726, 6986, 807295]; // approximate from your paste - update with exact
+    // === CHANGE THIS LINE TO YOUR CSV LINK ===
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTiqN8TgiBSUIl-x6_cuitcwGRu8AH5wP1NHmzz7SiV9877X_BWq18ruwPT0ufK-U9GcQ173yp1Xbo1/pub?gid=397601483&single=true&output=csv";
 
-    // Tailwind script already loaded
+    let monthsData = [];
+    let packagesChart, growthChart;
+
+    async function loadDashboard() {
+      try {
+        const response = await fetch(CSV_URL);
+        if (!response.ok) throw new Error("CSV nav pieejams");
+        const csvText = await response.text();
+        parseCSV(csvText);
+        renderDashboard();
+      } catch (err) {
+        console.error(err);
+        alert("Neizdevās ielādēt datus no CSV. Pārliecinies, ka saite ir publicēta kā CSV un mēģini vēlreiz.");
+      }
+    }
+
+    function parseCSV(csvText) {
+      const rows = csvText.trim().split('\n').map(row => row.split(','));
+      monthsData = [];
+
+      const monthNames = ['Janvāris','Februāris','Marts','Aprīlis','Maijs','Jūnijs','Jūlijs','Augusts','Septembris','Oktobris','Novembris','Decembris'];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i].map(cell => cell.replace(/"/g, '').trim());
+
+        // Detect month header
+        let month = null;
+        for (let cell of row) {
+          if (monthNames.includes(cell)) {
+            month = cell;
+            break;
+          }
+        }
+
+        if (month && row[0] && (row[0] === '2025' || row[0] === '2026')) {
+          const year = row[0];
+          const pkg250 = parseFloat(row[1]) || 0;
+          const pkg1kg = parseFloat(row[2]) || 0;
+          const pkgBundza = parseFloat(row[3]) || 0;
+          const pkg500 = parseFloat(row[4]) || 0;
+          const pkg3kg = parseFloat(row[5]) || 0;
+          const total = parseFloat(row[6]) || 0;
+
+          // Find growth % in the same block
+          let growth = 0;
+          if (i+1 < rows.length) {
+            const nextRow = rows[i+1].map(c => c.replace(/"/g,'').trim());
+            growth = parseFloat(nextRow.find(c => c.includes('.') && !isNaN(parseFloat(c)))) || 0;
+          }
+
+          monthsData.push({
+            month: month,
+            year: year,
+            pkg250: pkg250,
+            pkg1kg: pkg1kg,
+            pkgBundza: pkgBundza,
+            pkg500: pkg500,
+            pkg3kg: pkg3kg,
+            total: total,
+            growth: growth
+          });
+        }
+      }
+
+      // Add overall averages (hardcoded from your sheet for now)
+      window.overall = {
+        avgGrowth: 47.34,
+        avgPerHour: 20.58,
+        avgPerDayOne: 75.85,
+        avgPerMonthOne: 1668.71
+      };
+    }
+
+    function renderDashboard() {
+      // Summary Cards
+      const cardsHTML = `
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+          <div class="text-emerald-600 dark:text-emerald-400 text-sm font-medium">Vidējais pieaugums</div>
+          <div class="text-5xl font-bold mt-2">+${window.overall.avgGrowth}%</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+          <div class="text-blue-600 dark:text-blue-400 text-sm font-medium">Vidēji stundā (viens)</div>
+          <div class="text-5xl font-bold mt-2">${window.overall.avgPerHour}</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+          <div class="text-amber-600 dark:text-amber-400 text-sm font-medium">Vidēji dienā (viens)</div>
+          <div class="text-5xl font-bold mt-2">${window.overall.avgPerDayOne}</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+          <div class="text-purple-600 dark:text-purple-400 text-sm font-medium">Vidēji mēnesī (viens)</div>
+          <div class="text-5xl font-bold mt-2">${window.overall.avgPerMonthOne}</div>
+        </div>
+      `;
+      document.getElementById('summaryCards').innerHTML = cardsHTML;
+
+      // Prepare chart data
+      const labels = [...new Set(monthsData.map(d => d.month))];
+      const totals2025 = monthsData.filter(d => d.year === '2025').map(d => d.total);
+      const totals2026 = monthsData.filter(d => d.year === '2026').map(d => d.total);
+      const growths = monthsData.filter(d => d.growth > 0).map(d => d.growth);
+
+      // Packages Bar Chart
+      if (packagesChart) packagesChart.destroy();
+      packagesChart = new Chart(document.getElementById('packagesChart'), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: '2025', data: totals2025, backgroundColor: '#10b981', borderRadius: 6 },
+            { label: '2026', data: totals2026, backgroundColor: '#3b82f6', borderRadius: 6 }
+          ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      });
+
+      // Growth Line Chart
+      if (growthChart) growthChart.destroy();
+      growthChart = new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Pieaugums %',
+            data: growths,
+            borderColor: '#eab308',
+            tension: 0.4,
+            borderWidth: 5,
+            pointRadius: 5
+          }]
+        },
+        options: { responsive: true }
+      });
+
+      // Table
+      const tbody = document.getElementById('dataBody');
+      tbody.innerHTML = '';
+      monthsData.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-4 py-4 font-medium">${item.month} ${item.year}</td>
+          <td class="px-4 py-4 text-right">${item.pkg250.toLocaleString('lv-LV')}</td>
+          <td class="px-4 py-4 text-right">${item.pkg1kg.toLocaleString('lv-LV')}</td>
+          <td class="px-4 py-4 text-right">${item.pkgBundza.toLocaleString('lv-LV')}</td>
+          <td class="px-4 py-4 text-right">${item.pkg500.toLocaleString('lv-LV')}</td>
+          <td class="px-4 py-4 text-right">${item.pkg3kg.toLocaleString('lv-LV')}</td>
+          <td class="px-4 py-4 text-right font-bold">${item.total.toLocaleString('lv-LV')}</td>
+          <td class="px-4 py-4 text-right text-emerald-600 font-medium">${item.growth ? '+' + item.growth + '%' : '-'}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
 
     function toggleDarkMode() {
       document.documentElement.classList.toggle('dark');
@@ -108,53 +233,8 @@
       text.textContent = document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
     }
 
-    // Bar Chart - Packages
-    new Chart(document.getElementById('packagesChart'), {
-      type: 'bar',
-      data: {
-        labels: months,
-        datasets: [{
-          label: 'Kopā iepakojumi',
-          data: totals,
-          backgroundColor: '#10b981',
-          borderRadius: 8,
-        }]
-      },
-      options: { responsive: true, plugins: { legend: { display: false } } }
-    });
-
-    // Line Chart - Growth
-    new Chart(document.getElementById('growthChart'), {
-      type: 'line',
-      data: {
-        labels: months,
-        datasets: [{
-          label: 'Pieaugums %',
-          data: growth,
-          borderColor: '#eab308',
-          tension: 0.4,
-          borderWidth: 4
-        }]
-      },
-      options: { responsive: true }
-    });
-
-    // Simple table (you can expand this)
-    const tbody = document.getElementById('dataBody');
-    months.forEach((m, i) => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td class="px-4 py-4 font-medium">${m}</td>
-        <td class="px-4 py-4 text-right">—</td>
-        <td class="px-4 py-4 text-right">—</td>
-        <td class="px-4 py-4 text-right">—</td>
-        <td class="px-4 py-4 text-right">—</td>
-        <td class="px-4 py-4 text-right">—</td>
-        <td class="px-4 py-4 text-right font-bold">${totals[i].toLocaleString('lv-LV')}</td>
-        <td class="px-4 py-4 text-right text-emerald-600">+${growth[i]}%</td>
-      `;
-      tbody.appendChild(row);
-    });
+    // Load data when page opens
+    window.onload = loadDashboard;
   </script>
 </body>
 </html>
