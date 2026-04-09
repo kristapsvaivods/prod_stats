@@ -18,17 +18,17 @@
     <div class="flex justify-between items-center mb-8">
       <div>
         <h1 class="text-4xl font-bold text-emerald-600">Ražošanas Atsauce 2026</h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">Pieaugums % un darbinieku efektivitāte aprēķināta automātiski</p>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Pieaugums % un efektivitāte aprēķināta automātiski</p>
       </div>
       <button onclick="toggleDarkMode()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center gap-2">
         <i class="fas fa-moon"></i> <span id="theme-text">Dark Mode</span>
       </button>
     </div>
 
-    <!-- Dynamic Summary Cards -->
+    <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10" id="summaryCards"></div>
 
-    <!-- Charts (now sorted January → December) -->
+    <!-- Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
         <h2 class="text-xl font-semibold mb-4">Kopā iepakojumi (2025 vs 2026)</h2>
@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <!-- 2026 Table -->
+    <!-- Table -->
     <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow overflow-hidden">
       <h2 class="text-2xl font-semibold mb-6">2026 Ražošanas rezultāti</h2>
       <div class="overflow-x-auto">
@@ -63,7 +63,7 @@
     </div>
 
     <div class="text-center text-gray-500 dark:text-gray-400 text-xs mt-12">
-      Visi aprēķini (pieaugums % un 6 darbinieku efektivitāte) tiek veikti tiešsaistē
+      Duplikāti automātiski noņemti • Aprēķini notiek tiešsaistē
     </div>
   </div>
 
@@ -73,74 +73,62 @@
     let data2026 = [];
     let data2025 = [];
 
-    const monthOrder = {
-      "Janvāris": 1, "Februāris": 2, "Marts": 3, "Aprīlis": 4,
-      "Maijs": 5, "Jūnijs": 6, "Jūlijs": 7, "Augusts": 8,
-      "Septembris": 9, "Oktobris": 10, "Novembris": 11, "Decembris": 12
-    };
+    const monthOrder = ["Janvāris","Februāris","Marts","Aprīlis","Maijs","Jūnijs","Jūlijs","Augusts","Septembris","Oktobris","Novembris","Decembris"];
 
     async function loadData() {
       try {
-        const response = await fetch(CSV_URL);
-        const csvText = await response.text();
-        parseCSV(csvText);
+        const res = await fetch(CSV_URL);
+        const text = await res.text();
+        parseCSV(text);
         renderAll();
-      } catch (err) {
-        console.error(err);
-        alert("Neizdevās ielādēt CSV. Pārbaudi saiti.");
+      } catch (e) {
+        alert("Neizdevās ielādēt datus.");
       }
     }
 
     function parseCSV(csvText) {
-      const rows = csvText.trim().split('\n').map(row => 
-        row.split(',').map(cell => cell.replace(/"/g, '').trim())
-      );
+      const rows = csvText.trim().split('\n').map(r => r.split(',').map(c => c.replace(/"/g,'').trim()));
 
-      data2026 = [];
-      data2025 = [];
+      const temp2026 = {};
+      const temp2025 = {};
       let currentMonth = "";
 
-      const monthNames = Object.keys(monthOrder);
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-
-        if (monthNames.includes(row[0])) currentMonth = row[0];
+      for (let row of rows) {
+        if (monthOrder.includes(row[0])) currentMonth = row[0];
 
         if (row[0] === "2025" || row[0] === "2026") {
           const year = row[0];
-          const pkg250 = parseFloat(row[1]) || 0;
-          const pkg1kg = parseFloat(row[2]) || 0;
-          const pkgBundza = parseFloat(row[3]) || 0;
-          const pkg500 = parseFloat(row[4]) || 0;
-          const pkg3kg = parseFloat(row[5]) || 0;
           const total = parseFloat(row[6]) || 0;
 
-          const entry = { 
-            month: currentMonth, 
-            pkg250, pkg1kg, pkgBundza, pkg500, pkg3kg, 
-            total 
+          const entry = {
+            month: currentMonth,
+            total: total,
+            pkg250: parseFloat(row[1]) || 0,
+            pkg1kg: parseFloat(row[2]) || 0,
+            pkgBundza: parseFloat(row[3]) || 0,
+            pkg500: parseFloat(row[4]) || 0,
+            pkg3kg: parseFloat(row[5]) || 0
           };
 
-          if (year === "2026") data2026.push(entry);
-          if (year === "2025") data2025.push(entry);
+          // Keep only the LAST occurrence of each month (most recent data)
+          if (year === "2026") temp2026[currentMonth] = entry;
+          if (year === "2025") temp2025[currentMonth] = entry;
         }
       }
 
-      // Calculate Pieaugums % (2026 vs 2025)
-      data2026.forEach(item2026 => {
-        const match2025 = data2025.find(m => m.month === item2026.month);
-        if (match2025 && match2025.total > 0) {
-          item2026.growth = ((item2026.total - match2025.total) / match2025.total) * 100;
+      // Convert back to arrays and sort January first
+      data2026 = Object.values(temp2026).sort((a,b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+      data2025 = Object.values(temp2025).sort((a,b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+
+      // Calculate growth %
+      data2026.forEach(item => {
+        const prev = data2025.find(m => m.month === item.month);
+        if (prev && prev.total > 0) {
+          item.growth = ((item.total - prev.total) / prev.total) * 100;
         } else {
-          item2026.growth = 0;
+          item.growth = 0;
         }
       });
-
-      // Sort both arrays chronologically (January first)
-      const sortByMonth = (a, b) => monthOrder[a.month] - monthOrder[b.month];
-      data2026.sort(sortByMonth);
-      data2025.sort(sortByMonth);
     }
 
     function renderAll() {
@@ -152,12 +140,9 @@
     function renderDynamicSummary() {
       if (data2026.length === 0) return;
 
-      const totalPackages2026 = data2026.reduce((sum, m) => sum + m.total, 0);
-      const avgMonthlyTotal = totalPackages2026 / data2026.length;
-
-      // 6 production employees
-      const perPersonMonthly = (avgMonthlyTotal / 6).toFixed(0);
-      const avgGrowth = data2026.reduce((sum, m) => sum + m.growth, 0) / data2026.length;
+      const avgGrowth = data2026.reduce((sum, m) => sum + (m.growth || 0), 0) / data2026.length;
+      const avgMonthlyTotal = data2026.reduce((sum, m) => sum + m.total, 0) / data2026.length;
+      const perPersonMonthly = Math.round(avgMonthlyTotal / 6);
 
       const html = `
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
@@ -205,41 +190,33 @@
       const months = data2026.map(d => d.month);
       const totals2025 = data2025.map(d => d.total);
       const totals2026 = data2026.map(d => d.total);
-      const growths = data2026.map(d => d.growth);
+      const growths = data2026.map(d => d.growth || 0);
 
       new Chart(document.getElementById('totalChart'), {
         type: 'bar',
-        data: {
-          labels: months,
-          datasets: [
-            { label: '2025', data: totals2025, backgroundColor: '#9ca3af' },
-            { label: '2026', data: totals2026, backgroundColor: '#10b981' }
-          ]
-        },
+        data: { labels: months, datasets: [
+          { label: '2025', data: totals2025, backgroundColor: '#9ca3af' },
+          { label: '2026', data: totals2026, backgroundColor: '#10b981' }
+        ]},
         options: { responsive: true }
       });
 
       new Chart(document.getElementById('growthChart'), {
         type: 'line',
-        data: {
-          labels: months,
-          datasets: [{
-            label: 'Pieaugums %',
-            data: growths,
-            borderColor: '#eab308',
-            tension: 0.4,
-            borderWidth: 5,
-            pointRadius: 5
-          }]
-        },
+        data: { labels: months, datasets: [{
+          label: 'Pieaugums %',
+          data: growths,
+          borderColor: '#eab308',
+          tension: 0.4,
+          borderWidth: 5
+        }]},
         options: { responsive: true }
       });
     }
 
     function toggleDarkMode() {
       document.documentElement.classList.toggle('dark');
-      document.getElementById('theme-text').textContent = 
-        document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
+      document.getElementById('theme-text').textContent = document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
     }
 
     window.onload = loadData;
