@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ražošanas Atsauce 2024/25</title>
+  <title>Ražošanas Atsauce 2024/25 - 2026</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
@@ -11,18 +11,19 @@
     body { font-family: system-ui, sans-serif; }
     .card { transition: all 0.3s ease; }
     .card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
-    th, td { padding: 12px 16px; }
   </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
   <div class="max-w-7xl mx-auto p-6">
     <div class="flex justify-between items-center mb-8">
       <div>
-        <h1 class="text-4xl font-bold">Ražošanas Atsauce 2024/25</h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">Iepakojumu ražošana un efektivitāte</p>
+        <h1 class="text-4xl font-bold text-emerald-600">Ražošanas Atsauce 2026</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Fokuss uz pieaugumu salīdzinājumā ar 2025</p>
       </div>
-      <button onclick="toggleDarkMode()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center gap-2">
-        <i class="fas fa-moon"></i> <span id="theme-text">Dark Mode</span>
+      <button onclick="toggleDarkMode()" 
+              class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center gap-2 hover:bg-gray-300 dark:hover:bg-gray-600">
+        <i class="fas fa-moon"></i> 
+        <span id="theme-text">Dark Mode</span>
       </button>
     </div>
 
@@ -36,73 +37,76 @@
         <canvas id="totalChart" height="140"></canvas>
       </div>
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Pieaugums % pa mēnešiem</h2>
+        <h2 class="text-xl font-semibold mb-4">Pieaugums % pa mēnešiem (2026)</h2>
         <canvas id="growthChart" height="140"></canvas>
       </div>
     </div>
 
-    <!-- Main Data Table -->
+    <!-- Main Table - Only 2026 -->
     <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow overflow-hidden">
-      <h2 class="text-2xl font-semibold mb-6">Ražošanas dati pa mēnešiem</h2>
+      <h2 class="text-2xl font-semibold mb-6 flex items-center gap-3">
+        2026 Ražošanas rezultāti 
+        <span class="text-sm font-normal text-gray-500">(salīdzinājumā ar 2025)</span>
+      </h2>
       <div class="overflow-x-auto">
-        <table class="w-full text-sm border-collapse" id="dataTable">
+        <table class="w-full text-sm" id="dataTable">
           <thead class="bg-gray-100 dark:bg-gray-700">
             <tr>
-              <th class="text-left">Mēnesis</th>
-              <th class="text-right">Gads</th>
+              <th class="text-left py-4">Mēnesis</th>
               <th class="text-right">250g</th>
               <th class="text-right">1kg</th>
               <th class="text-right">Bundža</th>
               <th class="text-right">500g</th>
               <th class="text-right">3kg</th>
               <th class="text-right font-bold">Kopā</th>
-              <th class="text-right">Pieaugums %</th>
-              <th class="text-right">1 darbinieks (Mēnesī)</th>
-              <th class="text-right">1 darbinieks (Dienā)</th>
-              <th class="text-right">1 darbinieks (Stundā)</th>
+              <th class="text-right text-emerald-600">Pieaugums %</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-200 dark:divide-gray-700" id="tableBody"></tbody>
+          <tbody id="tableBody" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
         </table>
       </div>
     </div>
 
     <div class="text-center text-gray-500 dark:text-gray-400 text-xs mt-12">
-      Dati ielādēti automātiski no Google Sheets • Atjauninās pēc "Republish now"
+      Dati automātiski ielādēti no Google Sheets • Atjaunini ar "Republish now"
     </div>
   </div>
 
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTiqN8TgiBSUIl-x6_cuitcwGRu8AH5wP1NHmzz7SiV9877X_BWq18ruwPT0ufK-U9GcQ173yp1Xbo1/pub?gid=397601483&single=true&output=csv";
 
-    let allData = [];
+    let data2026 = [];
+    let data2025 = [];
 
     async function loadData() {
       try {
-        const res = await fetch(CSV_URL);
-        const text = await res.text();
-        parseAndRender(text);
-      } catch (e) {
-        alert("Neizdevās ielādēt CSV. Pārliecinies, ka saite ir publicēta kā CSV un mēģini vēlreiz.");
-        console.error(e);
+        const response = await fetch(CSV_URL);
+        const csvText = await response.text();
+        parseCSV(csvText);
+        renderAll();
+      } catch (err) {
+        console.error(err);
+        alert("Neizdevās ielādēt datus. Pārbaudi CSV publicēšanas saiti.");
       }
     }
 
-    function parseAndRender(csvText) {
-      const rows = csvText.trim().split('\n').map(r => r.split(',').map(c => c.replace(/"/g,'').trim()));
+    function parseCSV(csvText) {
+      const rows = csvText.trim().split('\n').map(r => 
+        r.split(',').map(cell => cell.replace(/"/g, '').trim())
+      );
 
-      allData = [];
+      data2026 = [];
+      data2025 = [];
       let currentMonth = "";
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
 
         // Detect month
-        if (row[0] && ['Marts','Februāris','Javāris','Decembris','Novembris','Oktobris','Septembris','Augusts','Jūlijs','Jūnijs','Maijs'].includes(row[0])) {
-          currentMonth = row[0];
-        }
+        const monthNames = ["Marts","Februāris","Javāris","Decembris","Novembris","Oktobris","Septembris","Augusts","Jūlijs","Jūnijs","Maijs"];
+        if (monthNames.includes(row[0])) currentMonth = row[0];
 
-        if (row[0] && (row[0] === "2025" || row[0] === "2026" || row[0] === "2024")) {
+        if (row[0] === "2025" || row[0] === "2026") {
           const year = row[0];
           const pkg250 = parseFloat(row[1]) || 0;
           const pkg1kg = parseFloat(row[2]) || 0;
@@ -111,106 +115,109 @@
           const pkg3kg = parseFloat(row[5]) || 0;
           const total = parseFloat(row[6]) || 0;
 
-          // Growth % is usually in the next few cells or same block
           let growth = 0;
-          for (let j = 7; j < row.length; j++) {
-            if (row[j].includes('.') && !isNaN(parseFloat(row[j]))) {
-              growth = parseFloat(row[j]);
+          // Look for growth percentage in nearby cells
+          for (let j = 7; j < Math.min(row.length, 15); j++) {
+            const num = parseFloat(row[j]);
+            if (!isNaN(num) && num > 0 && num < 1000) {
+              growth = num;
               break;
             }
           }
 
-          allData.push({
-            month: currentMonth,
-            year: year,
-            pkg250, pkg1kg, pkgBundza, pkg500, pkg3kg, total,
-            growth: growth || 0
-          });
+          const entry = { 
+            month: currentMonth, 
+            pkg250, pkg1kg, pkgBundza, pkg500, pkg3kg, 
+            total, growth 
+          };
+
+          if (year === "2026") data2026.push(entry);
+          else if (year === "2025") data2025.push(entry);
         }
       }
+    }
 
+    function renderAll() {
+      renderSummary();
       renderTable();
       renderCharts();
-      renderSummary();
     }
 
     function renderSummary() {
       const html = `
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-emerald-600 text-sm">Vidējais pieaugums</div>
-          <div class="text-5xl font-bold mt-2">+47.34%</div>
+          <div class="text-emerald-600 text-sm font-medium">Vidējais pieaugums 2026</div>
+          <div class="text-5xl font-bold mt-2 text-emerald-600">+47.34%</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-blue-600 text-sm">Vidēji stundā (1 cilvēks)</div>
+          <div class="text-blue-600 text-sm font-medium">Vidēji stundā (1 cilvēks)</div>
           <div class="text-5xl font-bold mt-2">20.58</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-amber-600 text-sm">Vidēji dienā (1 cilvēks)</div>
+          <div class="text-amber-600 text-sm font-medium">Vidēji dienā (1 cilvēks)</div>
           <div class="text-5xl font-bold mt-2">~82</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-purple-600 text-sm">Vidēji mēnesī (1 cilvēks)</div>
+          <div class="text-purple-600 text-sm font-medium">Vidēji mēnesī (1 cilvēks)</div>
           <div class="text-5xl font-bold mt-2">~1,800</div>
         </div>
       `;
-      document.getElementById('summaryCards').innerHTML = html;
+      document.getElementById("summaryCards").innerHTML = html;
     }
 
     function renderTable() {
-      const tbody = document.getElementById('tableBody');
-      tbody.innerHTML = '';
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
 
-      allData.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700";
+      data2026.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors";
         tr.innerHTML = `
-          <td class="font-medium">${item.month}</td>
-          <td class="text-right">${item.year}</td>
+          <td class="py-4 font-medium">${item.month}</td>
           <td class="text-right">${item.pkg250.toLocaleString('lv-LV')}</td>
           <td class="text-right">${item.pkg1kg.toLocaleString('lv-LV')}</td>
           <td class="text-right">${item.pkgBundza.toLocaleString('lv-LV')}</td>
           <td class="text-right">${item.pkg500.toLocaleString('lv-LV')}</td>
           <td class="text-right">${item.pkg3kg.toLocaleString('lv-LV')}</td>
           <td class="text-right font-bold">${item.total.toLocaleString('lv-LV')}</td>
-          <td class="text-right text-emerald-600 font-medium">${item.growth ? '+' + item.growth.toFixed(2) + '%' : '-'}</td>
-          <td class="text-right text-gray-500">—</td>
-          <td class="text-right text-gray-500">—</td>
-          <td class="text-right text-gray-500">—</td>
+          <td class="text-right text-emerald-600 font-semibold">${item.growth ? '+' + item.growth.toFixed(2) + '%' : '-'}</td>
         `;
         tbody.appendChild(tr);
       });
     }
 
     function renderCharts() {
-      const months = [...new Set(allData.map(d => d.month))];
-      const totals2025 = allData.filter(d => d.year === "2025").map(d => d.total);
-      const totals2026 = allData.filter(d => d.year === "2026").map(d => d.total);
-      const growths = allData.filter(d => d.growth > 0).map(d => d.growth);
+      const months = data2026.map(d => d.month);
+      const totals2025 = data2025.map(d => d.total);
+      const totals2026 = data2026.map(d => d.total);
+      const growthValues = data2026.map(d => d.growth);
 
-      // Total packages chart
+      // Total packages comparison
       new Chart(document.getElementById('totalChart'), {
         type: 'bar',
         data: {
           labels: months,
           datasets: [
-            { label: '2025', data: totals2025, backgroundColor: '#10b981' },
-            { label: '2026', data: totals2026, backgroundColor: '#3b82f6' }
+            { label: '2025', data: totals2025, backgroundColor: '#9ca3af' },
+            { label: '2026', data: totals2026, backgroundColor: '#10b981' }
           ]
         },
-        options: { responsive: true, plugins: { legend: { position: 'top' } } }
+        options: { responsive: true, plugins: { legend: { position: 'top' }}}
       });
 
-      // Growth chart
+      // Growth percentage
       new Chart(document.getElementById('growthChart'), {
         type: 'line',
         data: {
           labels: months,
           datasets: [{
             label: 'Pieaugums %',
-            data: growths,
+            data: growthValues,
             borderColor: '#eab308',
-            tension: 0.3,
-            borderWidth: 4
+            backgroundColor: 'rgba(234, 179, 8, 0.1)',
+            tension: 0.4,
+            borderWidth: 5,
+            pointRadius: 6
           }]
         },
         options: { responsive: true }
@@ -223,7 +230,7 @@
         document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
     }
 
-    // Start loading
+    // Load everything
     window.onload = loadData;
   </script>
 </body>
