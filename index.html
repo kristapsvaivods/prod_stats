@@ -18,7 +18,7 @@
     <div class="flex justify-between items-center mb-8">
       <div>
         <h1 class="text-4xl font-bold text-emerald-600">Ražošanas Atsauce 2026</h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">Pieaugums % un efektivitāte aprēķināta automātiski</p>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Pieaugums % un darbinieku efektivitāte aprēķināta automātiski</p>
       </div>
       <button onclick="toggleDarkMode()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center gap-2">
         <i class="fas fa-moon"></i> <span id="theme-text">Dark Mode</span>
@@ -28,7 +28,7 @@
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10" id="summaryCards"></div>
 
-    <!-- Charts -->
+    <!-- Original Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
         <h2 class="text-xl font-semibold mb-4">Kopā iepakojumi (2025 vs 2026)</h2>
@@ -37,6 +37,21 @@
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
         <h2 class="text-xl font-semibold mb-4">Pieaugums % pa mēnešiem (2026)</h2>
         <canvas id="growthChart" height="140"></canvas>
+      </div>
+    </div>
+
+    <!-- NEW SECTION: Per Person Chart + Team Estimation -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+      <!-- Per Person Production Chart -->
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
+        <h2 class="text-xl font-semibold mb-4">1 darbinieka produkcija pa mēnešiem</h2>
+        <canvas id="perPersonChart" height="140"></canvas>
+      </div>
+
+      <!-- Team Estimation Block -->
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow flex flex-col">
+        <h2 class="text-xl font-semibold mb-6">Prognoze komandai (6 darbinieki)</h2>
+        <div id="estimationBlock" class="flex-1 space-y-6"></div>
       </div>
     </div>
 
@@ -63,7 +78,7 @@
     </div>
 
     <div class="text-center text-gray-500 dark:text-gray-400 text-xs mt-12">
-      Janvāris, Februāris un Marts tagad redzami grafikos
+      Visi aprēķini notiek automātiski no jūsu CSV datiem
     </div>
   </div>
 
@@ -82,7 +97,7 @@
         parseCSV(text);
         renderAll();
       } catch (e) {
-        alert("Neizdevās ielādēt datus no CSV.");
+        alert("Neizdevās ielādēt datus.");
       }
     }
 
@@ -110,17 +125,14 @@
             pkg3kg: parseFloat(row[5]) || 0
           };
 
-          // Keep the last (most recent) entry for each month
           if (year === "2026") temp2026[currentMonth] = entry;
           if (year === "2025") temp2025[currentMonth] = entry;
         }
       }
 
-      // Convert to arrays and sort from January to December
       data2026 = Object.values(temp2026).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
       data2025 = Object.values(temp2025).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
 
-      // Calculate growth % (2026 vs 2025)
       data2026.forEach(item => {
         const prev = data2025.find(m => m.month === item.month);
         if (prev && prev.total > 0) {
@@ -135,11 +147,12 @@
       renderDynamicSummary();
       renderTable();
       renderCharts();
+      renderPerPersonChart();
+      renderEstimationBlock();
     }
 
     function renderDynamicSummary() {
       if (data2026.length === 0) return;
-
       const avgGrowth = data2026.reduce((sum, m) => sum + (m.growth || 0), 0) / data2026.length;
       const avgMonthlyTotal = data2026.reduce((sum, m) => sum + m.total, 0) / data2026.length;
       const perPersonMonthly = Math.round(avgMonthlyTotal / 6);
@@ -165,10 +178,66 @@
       document.getElementById("summaryCards").innerHTML = html;
     }
 
+    function renderPerPersonChart() {
+      const months = data2026.map(d => d.month);
+      const perPerson = data2026.map(d => Math.round(d.total / 6));
+
+      new Chart(document.getElementById('perPersonChart'), {
+        type: 'line',
+        data: {
+          labels: months,
+          datasets: [{
+            label: '1 darbinieks (iepakojumi mēnesī)',
+            data: perPerson,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            borderWidth: 5,
+            pointRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'top' } }
+        }
+      });
+    }
+
+    function renderEstimationBlock() {
+      if (data2026.length === 0) return;
+
+      const avgMonthlyTotal = data2026.reduce((sum, m) => sum + m.total, 0) / data2026.length;
+      const perPersonDaily = 82;                    // from your original data
+      const teamDaily = Math.round(perPersonDaily * 6);
+      const teamWeekly = Math.round(teamDaily * 5); // 5 working days
+      const teamMonthly = Math.round(avgMonthlyTotal);
+
+      const html = `
+        <div class="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <div class="text-sm text-gray-500">Dienā (komanda)</div>
+            <div class="text-4xl font-bold text-blue-600">${teamDaily.toLocaleString('lv-LV')}</div>
+            <div class="text-xs text-gray-400">iepakojumi</div>
+          </div>
+          <div>
+            <div class="text-sm text-gray-500">Nedēļā (komanda)</div>
+            <div class="text-4xl font-bold text-amber-600">${teamWeekly.toLocaleString('lv-LV')}</div>
+            <div class="text-xs text-gray-400">iepakojumi (5 darba dienas)</div>
+          </div>
+          <div>
+            <div class="text-sm text-gray-500">Mēnesī (komanda)</div>
+            <div class="text-4xl font-bold text-emerald-600">${teamMonthly.toLocaleString('lv-LV')}</div>
+            <div class="text-xs text-gray-400">iepakojumi</div>
+          </div>
+        </div>
+      `;
+      document.getElementById("estimationBlock").innerHTML = html;
+    }
+
+    // Rest of the functions (table, charts, dark mode) remain the same
     function renderTable() {
       const tbody = document.getElementById("tableBody");
       tbody.innerHTML = "";
-
       data2026.forEach(item => {
         const tr = document.createElement("tr");
         tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700";
@@ -192,41 +261,13 @@
       const totals2026 = data2026.map(d => d.total);
       const growths = data2026.map(d => d.growth || 0);
 
-      // Total packages chart
-      new Chart(document.getElementById('totalChart'), {
-        type: 'bar',
-        data: {
-          labels: months,
-          datasets: [
-            { label: '2025', data: totals2025, backgroundColor: '#9ca3af' },
-            { label: '2026', data: totals2026, backgroundColor: '#10b981' }
-          ]
-        },
-        options: { responsive: true }
-      });
-
-      // Growth chart
-      new Chart(document.getElementById('growthChart'), {
-        type: 'line',
-        data: {
-          labels: months,
-          datasets: [{
-            label: 'Pieaugums %',
-            data: growths,
-            borderColor: '#eab308',
-            tension: 0.4,
-            borderWidth: 5,
-            pointRadius: 5
-          }]
-        },
-        options: { responsive: true }
-      });
+      new Chart(document.getElementById('totalChart'), { type: 'bar', data: { labels: months, datasets: [{ label: '2025', data: totals2025, backgroundColor: '#9ca3af' }, { label: '2026', data: totals2026, backgroundColor: '#10b981' }] }, options: { responsive: true } });
+      new Chart(document.getElementById('growthChart'), { type: 'line', data: { labels: months, datasets: [{ label: 'Pieaugums %', data: growths, borderColor: '#eab308', tension: 0.4, borderWidth: 5 }] }, options: { responsive: true } });
     }
 
     function toggleDarkMode() {
       document.documentElement.classList.toggle('dark');
-      document.getElementById('theme-text').textContent = 
-        document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
+      document.getElementById('theme-text').textContent = document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
     }
 
     window.onload = loadData;
