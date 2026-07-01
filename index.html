@@ -28,27 +28,35 @@
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10" id="summaryCards"></div>
 
-    <!-- Original Charts -->
+    <!-- Charts: Original + New Field J -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+      <!-- Total Packages -->
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
         <h2 class="text-xl font-semibold mb-4">Kopā iepakojumi (2025 vs 2026)</h2>
         <canvas id="totalChart" height="140"></canvas>
       </div>
+      
+      <!-- NEW: Field J Chart -->
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
+        <h2 class="text-xl font-semibold mb-4">Lauks J (2025 vs 2026)</h2>
+        <canvas id="fieldJChart" height="140"></canvas>
+      </div>
+    </div>
+
+    <!-- Growth Chart -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
         <h2 class="text-xl font-semibold mb-4">Pieaugums % pa mēnešiem (2026)</h2>
         <canvas id="growthChart" height="140"></canvas>
       </div>
     </div>
 
-    <!-- NEW SECTION: Per Person Chart + Team Estimation -->
+    <!-- Per Person + Team Estimation -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-      <!-- Per Person Production Chart -->
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
         <h2 class="text-xl font-semibold mb-4">1 darbinieka produkcija pa mēnešiem</h2>
         <canvas id="perPersonChart" height="140"></canvas>
       </div>
-
-      <!-- Team Estimation Block -->
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow flex flex-col">
         <h2 class="text-xl font-semibold mb-6">Prognoze komandai (6 darbinieki)</h2>
         <div id="estimationBlock" class="flex-1 space-y-6"></div>
@@ -84,10 +92,8 @@
 
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTiqN8TgiBSUIl-x6_cuitcwGRu8AH5wP1NHmzz7SiV9877X_BWq18ruwPT0ufK-U9GcQ173yp1Xbo1/pub?gid=2119936157&single=true&output=csv";
-
     let data2026 = [];
     let data2025 = [];
-
     const monthOrder = ["Janvāris","Februāris","Marts","Aprīlis","Maijs","Jūnijs","Jūlijs","Augusts","Septembris","Oktobris","Novembris","Decembris"];
 
     async function loadData() {
@@ -103,7 +109,6 @@
 
     function parseCSV(csvText) {
       const rows = csvText.trim().split('\n').map(r => r.split(',').map(c => c.replace(/"/g,'').trim()));
-
       const temp2026 = {};
       const temp2025 = {};
       let currentMonth = "";
@@ -113,16 +118,15 @@
 
         if (row[0] === "2025" || row[0] === "2026") {
           const year = row[0];
-          const total = parseFloat(row[6]) || 0;
-
           const entry = {
             month: currentMonth,
-            total: total,
+            total: parseFloat(row[6]) || 0,
             pkg250: parseFloat(row[1]) || 0,
             pkg1kg: parseFloat(row[2]) || 0,
             pkgBundza: parseFloat(row[3]) || 0,
             pkg500: parseFloat(row[4]) || 0,
-            pkg3kg: parseFloat(row[5]) || 0
+            pkg3kg: parseFloat(row[5]) || 0,
+            fieldJ: parseFloat(row[9]) || 0   // Column J (0-based index 9)
           };
 
           if (year === "2026") temp2026[currentMonth] = entry;
@@ -133,6 +137,7 @@
       data2026 = Object.values(temp2026).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
       data2025 = Object.values(temp2025).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
 
+      // Calculate growth
       data2026.forEach(item => {
         const prev = data2025.find(m => m.month === item.month);
         if (prev && prev.total > 0) {
@@ -147,6 +152,7 @@
       renderDynamicSummary();
       renderTable();
       renderCharts();
+      renderFieldJChart();
       renderPerPersonChart();
       renderEstimationBlock();
     }
@@ -178,10 +184,27 @@
       document.getElementById("summaryCards").innerHTML = html;
     }
 
+    function renderFieldJChart() {
+      const months = data2026.map(d => d.month);
+      const fieldJ2025 = data2025.map(d => d.fieldJ || 0);
+      const fieldJ2026 = data2026.map(d => d.fieldJ);
+
+      new Chart(document.getElementById('fieldJChart'), {
+        type: 'bar',
+        data: {
+          labels: months,
+          datasets: [
+            { label: '2025', data: fieldJ2025, backgroundColor: '#9ca3af' },
+            { label: '2026', data: fieldJ2026, backgroundColor: '#10b981' }
+          ]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'top' } } }
+      });
+    }
+
     function renderPerPersonChart() {
       const months = data2026.map(d => d.month);
       const perPerson = data2026.map(d => Math.round(d.total / 6));
-
       new Chart(document.getElementById('perPersonChart'), {
         type: 'line',
         data: {
@@ -196,20 +219,16 @@
             pointRadius: 6
           }]
         },
-        options: {
-          responsive: true,
-          plugins: { legend: { position: 'top' } }
-        }
+        options: { responsive: true, plugins: { legend: { position: 'top' } } }
       });
     }
 
     function renderEstimationBlock() {
       if (data2026.length === 0) return;
-
       const avgMonthlyTotal = data2026.reduce((sum, m) => sum + m.total, 0) / data2026.length;
-      const perPersonDaily = 82;                    // from your original data
+      const perPersonDaily = 82;
       const teamDaily = Math.round(perPersonDaily * 6);
-      const teamWeekly = Math.round(teamDaily * 5); // 5 working days
+      const teamWeekly = Math.round(teamDaily * 5);
       const teamMonthly = Math.round(avgMonthlyTotal);
 
       const html = `
@@ -234,7 +253,6 @@
       document.getElementById("estimationBlock").innerHTML = html;
     }
 
-    // Rest of the functions (table, charts, dark mode) remain the same
     function renderTable() {
       const tbody = document.getElementById("tableBody");
       tbody.innerHTML = "";
@@ -261,8 +279,26 @@
       const totals2026 = data2026.map(d => d.total);
       const growths = data2026.map(d => d.growth || 0);
 
-      new Chart(document.getElementById('totalChart'), { type: 'bar', data: { labels: months, datasets: [{ label: '2025', data: totals2025, backgroundColor: '#9ca3af' }, { label: '2026', data: totals2026, backgroundColor: '#10b981' }] }, options: { responsive: true } });
-      new Chart(document.getElementById('growthChart'), { type: 'line', data: { labels: months, datasets: [{ label: 'Pieaugums %', data: growths, borderColor: '#eab308', tension: 0.4, borderWidth: 5 }] }, options: { responsive: true } });
+      new Chart(document.getElementById('totalChart'), {
+        type: 'bar',
+        data: {
+          labels: months,
+          datasets: [
+            { label: '2025', data: totals2025, backgroundColor: '#9ca3af' },
+            { label: '2026', data: totals2026, backgroundColor: '#10b981' }
+          ]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'top' } } }
+      });
+
+      new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: {
+          labels: months,
+          datasets: [{ label: 'Pieaugums %', data: growths, borderColor: '#eab308', tension: 0.4, borderWidth: 5 }]
+        },
+        options: { responsive: true }
+      });
     }
 
     function toggleDarkMode() {
