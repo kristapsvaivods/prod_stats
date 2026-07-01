@@ -177,7 +177,7 @@
 
       const html = `
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-emerald-600 text-sm font-medium">Vidējais pieaugums 2026</div>
+          <div class="text-emerald-600 text-sm font-medium">Vidējais saražotais iep. pieaugums 2026</div>
           <div class="text-5xl font-bold mt-2 text-emerald-600">+${avgGrowth.toFixed(2)}%</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
@@ -359,11 +359,6 @@
         },
         options: { responsive: true, plugins: { legend: { position: 'top' } } }
       });
-    }
-
-    function toggleDarkMode() {
-      document.documentElement.classList.toggle('dark');
-      document.getElementById('theme-text').textContent = document.documentElement.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
     }
 
     window.onload = loadData;
