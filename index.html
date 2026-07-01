@@ -25,13 +25,13 @@
       </button>
     </div>
 
-    <!-- Summary Cards - Original -->
+    <!-- Summary Cards - Iepakojumi -->
     <div class="mb-8">
       <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Iepakojumi</h3>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="summaryCards"></div>
     </div>
 
-    <!-- NEW: Field J Summary Cards -->
+    <!-- Summary Cards - Grauzdēšana (Lauks J) - TOTAL -->
     <div class="mb-10">
       <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Grauzdēšana (Lauks J)</h3>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="summaryJCards"></div>
@@ -130,12 +130,12 @@
           const entry = {
             month: currentMonth,
             total: parseFloat(row[6]) || 0,
+            fieldJ: parseFloat(row[9]) || 0,
             pkg250: parseFloat(row[1]) || 0,
             pkg1kg: parseFloat(row[2]) || 0,
             pkgBundza: parseFloat(row[3]) || 0,
             pkg500: parseFloat(row[4]) || 0,
-            pkg3kg: parseFloat(row[5]) || 0,
-            fieldJ: parseFloat(row[9]) || 0
+            pkg3kg: parseFloat(row[5]) || 0
           };
 
           if (year === "2026") temp2026[currentMonth] = entry;
@@ -169,7 +169,6 @@
       renderEstimationBlock();
     }
 
-    // Original Summary
     function renderDynamicSummary() {
       if (data2026.length === 0) return;
       const avgGrowth = data2026.reduce((sum, m) => sum + (m.growth || 0), 0) / data2026.length;
@@ -197,13 +196,13 @@
       document.getElementById("summaryCards").innerHTML = html;
     }
 
-    // NEW: Field J Summary Cards
+    // Updated - Total values for Field J
     function renderJSummary() {
       if (data2026.length === 0) return;
+
       const avgGrowthJ = data2026.reduce((sum, m) => sum + (m.growthJ || 0), 0) / data2026.length;
-      const avgMonthlyJ = data2026.reduce((sum, m) => sum + m.fieldJ, 0) / data2026.length;
-      const perPersonMonthlyJ = Math.round(avgMonthlyJ / 6);
-      const perPersonDailyJ = Math.round(perPersonMonthlyJ / 21); // approx 21 working days
+      const totalMonthlyJ = Math.round(data2026.reduce((sum, m) => sum + m.fieldJ, 0) / data2026.length);
+      const totalDailyJ = Math.round(totalMonthlyJ / 21); // approx 21 working days per month
 
       const html = `
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
@@ -211,22 +210,20 @@
           <div class="text-5xl font-bold mt-2 text-emerald-600">+${avgGrowthJ.toFixed(2)}%</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-amber-600 text-sm font-medium">Vidēji sagrauzdēts dienā (1 cilvēks)</div>
-          <div class="text-5xl font-bold mt-2">${perPersonDailyJ}</div>
+          <div class="text-amber-600 text-sm font-medium">Vidēji sagrauzdēts dienā</div>
+          <div class="text-5xl font-bold mt-2">${totalDailyJ.toLocaleString('lv-LV')}</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-purple-600 text-sm font-medium">Vidēji sagrauzdēts mēnesī (1 cilvēks)</div>
-          <div class="text-5xl font-bold mt-2">${perPersonMonthlyJ}</div>
+          <div class="text-purple-600 text-sm font-medium">Vidēji sagrauzdēts mēnesī</div>
+          <div class="text-5xl font-bold mt-2">${totalMonthlyJ.toLocaleString('lv-LV')}</div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-blue-600 text-sm font-medium">Vidēji stundā (1 cilvēks)</div>
-          <div class="text-5xl font-bold mt-2">~4.2</div>
+          <div class="text-blue-600 text-sm font-medium">Vidēji stundā</div>
+          <div class="text-5xl font-bold mt-2">~25</div>
         </div>
       `;
       document.getElementById("summaryJCards").innerHTML = html;
     }
-
-    // ... (rest of the functions remain the same: renderFieldJChart, renderFieldJGrowthChart, etc.)
 
     function renderFieldJChart() {
       const months = data2026.map(d => d.month);
@@ -268,7 +265,7 @@
       });
     }
 
-    function renderPerPersonChart() { /* unchanged */ 
+    function renderPerPersonChart() {
       const months = data2026.map(d => d.month);
       const perPerson = data2026.map(d => Math.round(d.total / 6));
       new Chart(document.getElementById('perPersonChart'), {
@@ -289,7 +286,7 @@
       });
     }
 
-    function renderEstimationBlock() { /* unchanged */ 
+    function renderEstimationBlock() {
       if (data2026.length === 0) return;
       const avgMonthlyTotal = data2026.reduce((sum, m) => sum + m.total, 0) / data2026.length;
       const perPersonDaily = 82;
@@ -319,7 +316,7 @@
       document.getElementById("estimationBlock").innerHTML = html;
     }
 
-    function renderTable() { /* unchanged */ 
+    function renderTable() {
       const tbody = document.getElementById("tableBody");
       tbody.innerHTML = "";
       data2026.forEach(item => {
@@ -339,7 +336,7 @@
       });
     }
 
-    function renderCharts() { /* unchanged */ 
+    function renderCharts() {
       const months = data2026.map(d => d.month);
       const totals2025 = data2025.map(d => d.total || 0);
       const totals2026 = data2026.map(d => d.total);
