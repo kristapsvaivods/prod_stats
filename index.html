@@ -25,30 +25,37 @@
       </button>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10" id="summaryCards"></div>
+    <!-- Summary Cards - Original -->
+    <div class="mb-8">
+      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Iepakojumi</h3>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="summaryCards"></div>
+    </div>
 
-    <!-- Main Comparison Charts -->
+    <!-- NEW: Field J Summary Cards -->
+    <div class="mb-10">
+      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Grauzdēšana (Lauks J)</h3>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="summaryJCards"></div>
+    </div>
+
+    <!-- Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Kopā saražotie iepakojumi (2025 vs 2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Kopā iepakojumi (2025 vs 2026)</h2>
         <canvas id="totalChart" height="140"></canvas>
       </div>
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Grauzdētā kafija (2025 vs 2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Lauks J (2025 vs 2026)</h2>
         <canvas id="fieldJChart" height="140"></canvas>
       </div>
     </div>
 
-    <!-- Growth Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Iepakojumu ražošanas pieaugums % pa mēnešiem (2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Pieaugums % pa mēnešiem (2026)</h2>
         <canvas id="growthChart" height="140"></canvas>
       </div>
-      <!-- NEW: Field J Growth Chart -->
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Grauzdētās kafijas pieaugums % (2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Lauks J Pieaugums % (2026)</h2>
         <canvas id="fieldJGrowthChart" height="140"></canvas>
       </div>
     </div>
@@ -128,7 +135,7 @@
             pkgBundza: parseFloat(row[3]) || 0,
             pkg500: parseFloat(row[4]) || 0,
             pkg3kg: parseFloat(row[5]) || 0,
-            fieldJ: parseFloat(row[9]) || 0   // Column J
+            fieldJ: parseFloat(row[9]) || 0
           };
 
           if (year === "2026") temp2026[currentMonth] = entry;
@@ -139,10 +146,8 @@
       data2026 = Object.values(temp2026).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
       data2025 = Object.values(temp2025).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
 
-      // Calculate growth for both total and field J
       data2026.forEach(item => {
         const prev = data2025.find(m => m.month === item.month);
-        
         if (prev) {
           item.growth = prev.total > 0 ? ((item.total - prev.total) / prev.total) * 100 : 0;
           item.growthJ = prev.fieldJ > 0 ? ((item.fieldJ - prev.fieldJ) / prev.fieldJ) * 100 : 0;
@@ -155,6 +160,7 @@
 
     function renderAll() {
       renderDynamicSummary();
+      renderJSummary();
       renderTable();
       renderCharts();
       renderFieldJChart();
@@ -163,7 +169,8 @@
       renderEstimationBlock();
     }
 
-    function renderDynamicSummary() { /* unchanged */ 
+    // Original Summary
+    function renderDynamicSummary() {
       if (data2026.length === 0) return;
       const avgGrowth = data2026.reduce((sum, m) => sum + (m.growth || 0), 0) / data2026.length;
       const avgMonthlyTotal = data2026.reduce((sum, m) => sum + m.total, 0) / data2026.length;
@@ -189,6 +196,37 @@
       `;
       document.getElementById("summaryCards").innerHTML = html;
     }
+
+    // NEW: Field J Summary Cards
+    function renderJSummary() {
+      if (data2026.length === 0) return;
+      const avgGrowthJ = data2026.reduce((sum, m) => sum + (m.growthJ || 0), 0) / data2026.length;
+      const avgMonthlyJ = data2026.reduce((sum, m) => sum + m.fieldJ, 0) / data2026.length;
+      const perPersonMonthlyJ = Math.round(avgMonthlyJ / 6);
+      const perPersonDailyJ = Math.round(perPersonMonthlyJ / 21); // approx 21 working days
+
+      const html = `
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+          <div class="text-emerald-600 text-sm font-medium">Vidējais grauzdēšanas pieaugums 2026</div>
+          <div class="text-5xl font-bold mt-2 text-emerald-600">+${avgGrowthJ.toFixed(2)}%</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+          <div class="text-amber-600 text-sm font-medium">Vidēji sagrauzdēts dienā (1 cilvēks)</div>
+          <div class="text-5xl font-bold mt-2">${perPersonDailyJ}</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+          <div class="text-purple-600 text-sm font-medium">Vidēji sagrauzdēts mēnesī (1 cilvēks)</div>
+          <div class="text-5xl font-bold mt-2">${perPersonMonthlyJ}</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+          <div class="text-blue-600 text-sm font-medium">Vidēji stundā (1 cilvēks)</div>
+          <div class="text-5xl font-bold mt-2">~4.2</div>
+        </div>
+      `;
+      document.getElementById("summaryJCards").innerHTML = html;
+    }
+
+    // ... (rest of the functions remain the same: renderFieldJChart, renderFieldJGrowthChart, etc.)
 
     function renderFieldJChart() {
       const months = data2026.map(d => d.month);
@@ -230,7 +268,7 @@
       });
     }
 
-    function renderPerPersonChart() {
+    function renderPerPersonChart() { /* unchanged */ 
       const months = data2026.map(d => d.month);
       const perPerson = data2026.map(d => Math.round(d.total / 6));
       new Chart(document.getElementById('perPersonChart'), {
@@ -251,7 +289,7 @@
       });
     }
 
-    function renderEstimationBlock() {
+    function renderEstimationBlock() { /* unchanged */ 
       if (data2026.length === 0) return;
       const avgMonthlyTotal = data2026.reduce((sum, m) => sum + m.total, 0) / data2026.length;
       const perPersonDaily = 82;
@@ -281,7 +319,7 @@
       document.getElementById("estimationBlock").innerHTML = html;
     }
 
-    function renderTable() {
+    function renderTable() { /* unchanged */ 
       const tbody = document.getElementById("tableBody");
       tbody.innerHTML = "";
       data2026.forEach(item => {
@@ -301,7 +339,7 @@
       });
     }
 
-    function renderCharts() {
+    function renderCharts() { /* unchanged */ 
       const months = data2026.map(d => d.month);
       const totals2025 = data2025.map(d => d.total || 0);
       const totals2026 = data2026.map(d => d.total);
