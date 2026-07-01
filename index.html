@@ -27,35 +27,35 @@
 
     <!-- Summary Cards - Iepakojumi -->
     <div class="mb-8">
-      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Iepakojumi</h3>
+      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Iepakojumi ražošana</h3>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="summaryCards"></div>
     </div>
 
     <!-- Summary Cards - Grauzdēšana (Lauks J) - TOTAL -->
     <div class="mb-10">
-      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Grauzdēšana (Lauks J)</h3>
+      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Grauzdētā kafija</h3>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="summaryJCards"></div>
     </div>
 
     <!-- Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Kopā iepakojumi (2025 vs 2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Kopā saražotie iepakojumi (2025 vs 2026)</h2>
         <canvas id="totalChart" height="140"></canvas>
       </div>
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Lauks J (2025 vs 2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Grauzdētā kafija (2025 vs 2026)</h2>
         <canvas id="fieldJChart" height="140"></canvas>
       </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Pieaugums % pa mēnešiem (2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Saražoto iepakojumu pieaugums % (2026)</h2>
         <canvas id="growthChart" height="140"></canvas>
       </div>
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Lauks J Pieaugums % (2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Grauzdētās kafijas pieaugums % (2026)</h2>
         <canvas id="fieldJGrowthChart" height="140"></canvas>
       </div>
     </div>
@@ -252,7 +252,7 @@
         data: {
           labels: months,
           datasets: [{
-            label: 'Lauks J Pieaugums %',
+            label: 'Grauzdēšanas pieaugums %',
             data: growthJ,
             borderColor: '#eab308',
             backgroundColor: 'rgba(234, 179, 8, 0.1)',
