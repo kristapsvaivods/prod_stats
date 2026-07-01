@@ -28,26 +28,28 @@
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10" id="summaryCards"></div>
 
-    <!-- Charts: Original + New Field J -->
+    <!-- Main Comparison Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-      <!-- Total Packages -->
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Kopā iepakojumi (2025 vs 2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Kopā saražotie iepakojumi (2025 vs 2026)</h2>
         <canvas id="totalChart" height="140"></canvas>
       </div>
-      
-      <!-- NEW: Field J Chart -->
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Lauks J (2025 vs 2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Grauzdētā kafija (2025 vs 2026)</h2>
         <canvas id="fieldJChart" height="140"></canvas>
       </div>
     </div>
 
-    <!-- Growth Chart -->
+    <!-- Growth Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
-        <h2 class="text-xl font-semibold mb-4">Pieaugums % pa mēnešiem (2026)</h2>
+        <h2 class="text-xl font-semibold mb-4">Iepakojumu ražošanas pieaugums % pa mēnešiem (2026)</h2>
         <canvas id="growthChart" height="140"></canvas>
+      </div>
+      <!-- NEW: Field J Growth Chart -->
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow">
+        <h2 class="text-xl font-semibold mb-4">Grauzdētās kafijas pieaugums % (2026)</h2>
+        <canvas id="fieldJGrowthChart" height="140"></canvas>
       </div>
     </div>
 
@@ -126,7 +128,7 @@
             pkgBundza: parseFloat(row[3]) || 0,
             pkg500: parseFloat(row[4]) || 0,
             pkg3kg: parseFloat(row[5]) || 0,
-            fieldJ: parseFloat(row[9]) || 0   // Column J (0-based index 9)
+            fieldJ: parseFloat(row[9]) || 0   // Column J
           };
 
           if (year === "2026") temp2026[currentMonth] = entry;
@@ -137,13 +139,16 @@
       data2026 = Object.values(temp2026).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
       data2025 = Object.values(temp2025).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
 
-      // Calculate growth
+      // Calculate growth for both total and field J
       data2026.forEach(item => {
         const prev = data2025.find(m => m.month === item.month);
-        if (prev && prev.total > 0) {
-          item.growth = ((item.total - prev.total) / prev.total) * 100;
+        
+        if (prev) {
+          item.growth = prev.total > 0 ? ((item.total - prev.total) / prev.total) * 100 : 0;
+          item.growthJ = prev.fieldJ > 0 ? ((item.fieldJ - prev.fieldJ) / prev.fieldJ) * 100 : 0;
         } else {
           item.growth = 0;
+          item.growthJ = 0;
         }
       });
     }
@@ -153,11 +158,12 @@
       renderTable();
       renderCharts();
       renderFieldJChart();
+      renderFieldJGrowthChart();
       renderPerPersonChart();
       renderEstimationBlock();
     }
 
-    function renderDynamicSummary() {
+    function renderDynamicSummary() { /* unchanged */ 
       if (data2026.length === 0) return;
       const avgGrowth = data2026.reduce((sum, m) => sum + (m.growth || 0), 0) / data2026.length;
       const avgMonthlyTotal = data2026.reduce((sum, m) => sum + m.total, 0) / data2026.length;
@@ -197,6 +203,28 @@
             { label: '2025', data: fieldJ2025, backgroundColor: '#9ca3af' },
             { label: '2026', data: fieldJ2026, backgroundColor: '#10b981' }
           ]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'top' } } }
+      });
+    }
+
+    function renderFieldJGrowthChart() {
+      const months = data2026.map(d => d.month);
+      const growthJ = data2026.map(d => d.growthJ || 0);
+
+      new Chart(document.getElementById('fieldJGrowthChart'), {
+        type: 'line',
+        data: {
+          labels: months,
+          datasets: [{
+            label: 'Lauks J Pieaugums %',
+            data: growthJ,
+            borderColor: '#eab308',
+            backgroundColor: 'rgba(234, 179, 8, 0.1)',
+            tension: 0.4,
+            borderWidth: 5,
+            pointRadius: 5
+          }]
         },
         options: { responsive: true, plugins: { legend: { position: 'top' } } }
       });
@@ -281,13 +309,10 @@
 
       new Chart(document.getElementById('totalChart'), {
         type: 'bar',
-        data: {
-          labels: months,
-          datasets: [
-            { label: '2025', data: totals2025, backgroundColor: '#9ca3af' },
-            { label: '2026', data: totals2026, backgroundColor: '#10b981' }
-          ]
-        },
+        data: { labels: months, datasets: [
+          { label: '2025', data: totals2025, backgroundColor: '#9ca3af' },
+          { label: '2026', data: totals2026, backgroundColor: '#10b981' }
+        ]},
         options: { responsive: true, plugins: { legend: { position: 'top' } } }
       });
 
@@ -297,7 +322,7 @@
           labels: months,
           datasets: [{ label: 'Pieaugums %', data: growths, borderColor: '#eab308', tension: 0.4, borderWidth: 5 }]
         },
-        options: { responsive: true }
+        options: { responsive: true, plugins: { legend: { position: 'top' } } }
       });
     }
 
