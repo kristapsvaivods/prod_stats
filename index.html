@@ -245,85 +245,90 @@
       `;
     }
 
-    function renderDailyWeeklyCards() {
-      const today = new Date().toISOString().split('T')[0];
-      const oneWeekAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0];
+function renderDailyWeeklyCards() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
 
-      let todayData = { bundza:0, p250:0, p1kg:0, p3kg:0, p500:0, zw:0 };
-      let weekData = { bundza:0, p250:0, p1kg:0, p3kg:0, p500:0, zw:0 };
+  // Start of this week (Monday)
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)); // Monday
+  const weekStartStr = startOfWeek.toISOString().split('T')[0];
 
-      productionData.forEach(row => {
-        if (row.date === today) {
-          todayData.bundza += row.bundza;
-          todayData.p250 += row.p250;
-          todayData.p1kg += row.p1kg;
-          todayData.p3kg += row.p3kg;
-          todayData.p500 += row.p500;
-          todayData.zw += row.zw;
-        }
-        if (row.date >= oneWeekAgo) {
-          weekData.bundza += row.bundza;
-          weekData.p250 += row.p250;
-          weekData.p1kg += row.p1kg;
-          weekData.p3kg += row.p3kg;
-          weekData.p500 += row.p500;
-          weekData.zw += row.zw;
-        }
-      });
+  let todayData = { bundza:0, p250:0, p1kg:0, p3kg:0, p500:0, zw:0 };
+  let weekData = { bundza:0, p250:0, p1kg:0, p3kg:0, p500:0, zw:0 };
 
-      const html = `
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-amber-600">Šodien - Bundžas</div>
-          <div class="text-4xl font-bold mt-2">${todayData.bundza}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-amber-600">Šodien - 250g</div>
-          <div class="text-4xl font-bold mt-2">${todayData.p250}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-amber-600">Šodien - 1kg</div>
-          <div class="text-4xl font-bold mt-2">${todayData.p1kg}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-amber-600">Šodien - 3kg</div>
-          <div class="text-4xl font-bold mt-2">${todayData.p3kg}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-amber-600">Šodien - 500g</div>
-          <div class="text-4xl font-bold mt-2">${todayData.p500}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-purple-600">Šodien - ZW (kg)</div>
-          <div class="text-4xl font-bold mt-2">${todayData.zw.toFixed(1)}</div>
-        </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow col-span-2 lg:col-span-1 xl:col-span-1">
-          <div class="text-sm font-medium text-emerald-600">Šī nedēļa - Bundžas</div>
-          <div class="text-4xl font-bold mt-2">${weekData.bundza}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-emerald-600">Šī nedēļa - 250g</div>
-          <div class="text-4xl font-bold mt-2">${weekData.p250}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-emerald-600">Šī nedēļa - 1kg</div>
-          <div class="text-4xl font-bold mt-2">${weekData.p1kg}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-emerald-600">Šī nedēļa - 3kg</div>
-          <div class="text-4xl font-bold mt-2">${weekData.p3kg}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-emerald-600">Šī nedēļa - 500g</div>
-          <div class="text-4xl font-bold mt-2">${weekData.p500}</div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
-          <div class="text-sm font-medium text-purple-600">Šī nedēļa - ZW (kg)</div>
-          <div class="text-4xl font-bold mt-2">${weekData.zw.toFixed(1)}</div>
-        </div>
-      `;
-      document.getElementById("dailyWeeklyCards").innerHTML = html;
+  productionData.forEach(row => {
+    if (row.date === todayStr) {
+      todayData.bundza += row.bundza;
+      todayData.p250 += row.p250;
+      todayData.p1kg += row.p1kg;
+      todayData.p3kg += row.p3kg;
+      todayData.p500 += row.p500;
+      todayData.zw += row.zw;
     }
+    if (row.date >= weekStartStr) {
+      weekData.bundza += row.bundza;
+      weekData.p250 += row.p250;
+      weekData.p1kg += row.p1kg;
+      weekData.p3kg += row.p3kg;
+      weekData.p500 += row.p500;
+      weekData.zw += row.zw;
+    }
+  });
+
+  const html = `
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-amber-600">Šodien - Bundžas</div>
+      <div class="text-4xl font-bold mt-2">${todayData.bundza}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-amber-600">Šodien - 250g</div>
+      <div class="text-4xl font-bold mt-2">${todayData.p250}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-amber-600">Šodien - 1kg</div>
+      <div class="text-4xl font-bold mt-2">${todayData.p1kg}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-amber-600">Šodien - 3kg</div>
+      <div class="text-4xl font-bold mt-2">${todayData.p3kg}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-amber-600">Šodien - 500g</div>
+      <div class="text-4xl font-bold mt-2">${todayData.p500}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-purple-600">Šodien - ZW (kg)</div>
+      <div class="text-4xl font-bold mt-2">${todayData.zw.toFixed(1)}</div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow col-span-2 lg:col-span-1 xl:col-span-1">
+      <div class="text-sm font-medium text-emerald-600">Šī nedēļa - Bundžas</div>
+      <div class="text-4xl font-bold mt-2">${weekData.bundza}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-emerald-600">Šī nedēļa - 250g</div>
+      <div class="text-4xl font-bold mt-2">${weekData.p250}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-emerald-600">Šī nedēļa - 1kg</div>
+      <div class="text-4xl font-bold mt-2">${weekData.p1kg}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-emerald-600">Šī nedēļa - 3kg</div>
+      <div class="text-4xl font-bold mt-2">${weekData.p3kg}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-emerald-600">Šī nedēļa - 500g</div>
+      <div class="text-4xl font-bold mt-2">${weekData.p500}</div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
+      <div class="text-sm font-medium text-purple-600">Šī nedēļa - ZW (kg)</div>
+      <div class="text-4xl font-bold mt-2">${weekData.zw.toFixed(1)}</div>
+    </div>
+  `;
+  document.getElementById("dailyWeeklyCards").innerHTML = html;
+}
 
     function renderTable() {
       const tbody = document.getElementById("tableBody");
