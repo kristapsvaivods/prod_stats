@@ -7,8 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
- 
-  <!-- Suppress browser warnings -->
   <script>
     if (typeof process !== "undefined") process.setMaxListeners(50);
   </script>
@@ -43,6 +41,32 @@
     <div class="mb-10">
       <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Grauzdētā kafija</h3>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="summaryJCards"></div>
+    </div>
+
+    <!-- NEW: Forecast Section -->
+    <div class="mb-10">
+      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">
+        Prognoze 2026 (Q1–Q4) 
+        <span class="text-sm font-normal text-gray-500 ml-2">balstīta uz Jan–Jūl pieauguma tempu</span>
+      </h3>
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow overflow-x-auto">
+        <table class="w-full text-sm" id="forecastTable">
+          <thead class="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              <th class="text-left py-3 px-2">Tips</th>
+              <th class="text-right py-3 px-2">Q1 (faktiskais)</th>
+              <th class="text-right py-3 px-2">Q2 (faktiskais)</th>
+              <th class="text-right py-3 px-2">Q3 (prognoze)</th>
+              <th class="text-right py-3 px-2">Q4 (prognoze)</th>
+              <th class="text-right py-3 px-2 font-bold text-emerald-600">Gads kopā</th>
+            </tr>
+          </thead>
+          <tbody id="forecastBody" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+        </table>
+        <p class="text-xs text-gray-500 mt-4">
+          * Q1 un Q2 = reālie dati. Q3 un Q4 = 2025. gada attiecīgie mēneši × vidējais pieauguma temps (Jan–Jūl 2026 vs 2025).
+        </p>
+      </div>
     </div>
 
     <!-- Charts -->
@@ -109,7 +133,7 @@
 
   <script>
     // ================== CHANGE TEAM SIZE HERE ==================
-    const TEAM_SIZE = 5;   // ← Change this number (currently 5)
+    const TEAM_SIZE = 5;
     // ==========================================================
 
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTiqN8TgiBSUIl-x6_cuitcwGRu8AH5wP1NHmzz7SiV9877X_BWq18ruwPT0ufK-U9GcQ173yp1Xbo1/pub?gid=2119936157&single=true&output=csv";
@@ -136,6 +160,7 @@
       const rows = csvText.trim().split('\n').map(r => r.split(',').map(c => c.replace(/"/g,'').trim()));
       const temp2026 = {}, temp2025 = {};
       let currentMonth = "";
+
       for (let row of rows) {
         if (monthOrder.includes(row[0])) currentMonth = row[0];
         if (row[0] === "2025" || row[0] === "2026") {
@@ -154,8 +179,40 @@
           if (year === "2025") temp2025[currentMonth] = entry;
         }
       }
+
+      // Also try to collect historical 2025 data from the right side (columns M+)
+      // This is a best-effort parse of the mirrored months
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (row[12] && monthOrder.includes(row[12])) {
+          const histMonth = row[12];
+          // Next two rows usually contain 2024 and 2025
+          if (rows[i+1] && rows[i+1][12] === "2024") {
+            // skip 2024 for now
+          }
+          if (rows[i+2] && rows[i+2][12] === "2025") {
+            const r = rows[i+2];
+            if (!temp2025[histMonth]) {
+              temp2025[histMonth] = {
+                month: histMonth,
+                pkg250: parseFloat(r[13]) || 0,
+                pkg1kg: parseFloat(r[14]) || 0,
+                pkgBundza: parseFloat(r[15]) || 0,
+                pkg500: parseFloat(r[16]) || 0,
+                pkg3kg: parseFloat(r[17]) || 0,
+                total: 0
+              };
+              temp2025[histMonth].total = temp2025[histMonth].pkg250 + temp2025[histMonth].pkg1kg + 
+                                         temp2025[histMonth].pkgBundza + temp2025[histMonth].pkg500 + 
+                                         temp2025[histMonth].pkg3kg;
+            }
+          }
+        }
+      }
+
       data2026 = Object.values(temp2026).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
       data2025 = Object.values(temp2025).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+
       data2026.forEach(item => {
         const prev = data2025.find(m => m.month === item.month);
         if (prev) {
@@ -185,6 +242,7 @@
       renderDynamicSummary();
       renderJSummary();
       renderDailyWeeklyCards();
+      renderForecast();
       renderTable();
       renderCharts();
       renderFieldJChart();
@@ -193,6 +251,80 @@
       renderEstimationBlock();
     }
 
+    // ========== NEW FORECAST FUNCTION ==========
+    function renderForecast() {
+      if (data2026.length === 0) return;
+
+      // Calculate average growth rates (Jan–Jul)
+      const types = ['pkg250', 'pkg1kg', 'pkgBundza', 'pkg500', 'pkg3kg', 'total'];
+      const growthRates = {};
+
+      types.forEach(t => {
+        let sumGrowth = 0, count = 0;
+        data2026.forEach(m => {
+          const prev = data2025.find(p => p.month === m.month);
+          if (prev && prev[t] > 0) {
+            sumGrowth += (m[t] - prev[t]) / prev[t];
+            count++;
+          }
+        });
+        growthRates[t] = count > 0 ? sumGrowth / count : 0.15; // fallback 15%
+      });
+
+      // Helper to get value for a month (2026 actual or forecast)
+      function getValue(month, type) {
+        const actual = data2026.find(m => m.month === month);
+        if (actual) return actual[type] || 0;
+
+        const prev = data2025.find(m => m.month === month);
+        if (prev) return Math.round(prev[type] * (1 + growthRates[type]));
+        return 0;
+      }
+
+      // Quarters
+      const q1 = ["Janvāris","Februāris","Marts"];
+      const q2 = ["Aprīlis","Maijs","Jūnijs"];
+      const q3 = ["Jūlijs","Augusts","Septembris"];
+      const q4 = ["Oktobris","Novembris","Decembris"];
+
+      function sumQuarter(months, type) {
+        return months.reduce((s, m) => s + getValue(m, type), 0);
+      }
+
+      const labels = [
+        { key: 'pkg250', name: '250g' },
+        { key: 'pkg1kg', name: '1kg' },
+        { key: 'pkgBundza', name: 'Bundža' },
+        { key: 'pkg500', name: '500g' },
+        { key: 'pkg3kg', name: '3kg' },
+        { key: 'total', name: 'KOPĀ' }
+      ];
+
+      let html = '';
+      labels.forEach(l => {
+        const q1v = sumQuarter(q1, l.key);
+        const q2v = sumQuarter(q2, l.key);
+        const q3v = sumQuarter(q3, l.key);
+        const q4v = sumQuarter(q4, l.key);
+        const year = q1v + q2v + q3v + q4v;
+
+        const isTotal = l.key === 'total';
+        html += `
+          <tr class="${isTotal ? 'font-bold bg-emerald-50 dark:bg-emerald-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}">
+            <td class="py-3 px-2">${l.name}</td>
+            <td class="text-right py-3 px-2">${q1v.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2">${q2v.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2">${q3v.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2">${q4v.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2 text-emerald-600">${year.toLocaleString('lv-LV')}</td>
+          </tr>
+        `;
+      });
+
+      document.getElementById("forecastBody").innerHTML = html;
+    }
+
+    // ========== existing functions (unchanged) ==========
     function renderDynamicSummary() {
       if (data2026.length === 0) return;
       const avgGrowth = data2026.reduce((sum, m) => sum + (m.growth || 0), 0) / data2026.length;
@@ -264,7 +396,7 @@
         }
       });
 
-      const html = `
+      document.getElementById("dailyWeeklyCards").innerHTML = `
         <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
           <div class="text-sm font-medium text-amber-600">Šodien - Bundžas</div>
           <div class="text-4xl font-bold mt-2">${todayData.bundza}</div>
@@ -289,8 +421,7 @@
           <div class="text-sm font-medium text-purple-600">Šodien - ZW (kg)</div>
           <div class="text-4xl font-bold mt-2">${todayData.zw.toFixed(1)}</div>
         </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow col-span-2 lg:col-span-1 xl:col-span-1">
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 card shadow">
           <div class="text-sm font-medium text-emerald-600">Šī nedēļa - Bundžas</div>
           <div class="text-4xl font-bold mt-2">${weekData.bundza}</div>
         </div>
@@ -315,7 +446,6 @@
           <div class="text-4xl font-bold mt-2">${weekData.zw.toFixed(1)}</div>
         </div>
       `;
-      document.getElementById("dailyWeeklyCards").innerHTML = html;
     }
 
     function renderTable() {
@@ -430,7 +560,7 @@
 
       document.getElementById("teamTitle").textContent = `Prognoze komandai (${TEAM_SIZE} darbinieki)`;
 
-      const html = `
+      document.getElementById("estimationBlock").innerHTML = `
         <div class="grid grid-cols-3 gap-4 text-center">
           <div>
             <div class="text-sm text-gray-500">Dienā (komanda)</div>
@@ -449,7 +579,6 @@
           </div>
         </div>
       `;
-      document.getElementById("estimationBlock").innerHTML = html;
     }
 
     window.onload = loadData;
