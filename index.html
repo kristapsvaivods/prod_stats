@@ -47,25 +47,28 @@
     <div class="mb-10">
       <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">
         Prognoze 2026 (Q1–Q4)
-        <span class="text-sm font-normal text-gray-500 ml-2">izmantojot 2024 + 2025 + 2026 datus</span>
+        <span class="text-sm font-normal text-gray-500 ml-2">Faktiskais vs Estimāts (izmantojot 2024+2025+2026)</span>
       </h3>
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow overflow-x-auto">
         <table class="w-full text-sm" id="forecastTable">
           <thead class="bg-gray-100 dark:bg-gray-700">
             <tr>
               <th class="text-left py-3 px-2">Tips</th>
-              <th class="text-right py-3 px-2">Q1 (faktiskais)</th>
-              <th class="text-right py-3 px-2">Q2 (faktiskais)</th>
-              <th class="text-right py-3 px-2">Q3 (prognoze)</th>
-              <th class="text-right py-3 px-2">Q4 (prognoze)</th>
-              <th class="text-right py-3 px-2 font-bold text-emerald-600">Gads kopā</th>
+              <th class="text-right py-3 px-2">Q1 Fact</th>
+              <th class="text-right py-3 px-2 text-blue-600">Q1 Est</th>
+              <th class="text-right py-3 px-2">Q2 Fact</th>
+              <th class="text-right py-3 px-2 text-blue-600">Q2 Est</th>
+              <th class="text-right py-3 px-2 text-amber-600">Q3 Est</th>
+              <th class="text-right py-3 px-2 text-amber-600">Q4 Est</th>
+              <th class="text-right py-3 px-2 font-bold text-emerald-600">Gads Est</th>
             </tr>
           </thead>
           <tbody id="forecastBody" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
         </table>
         <p class="text-xs text-gray-500 mt-4">
-          * Q1 un Q2 = reālie 2026 dati.<br>
-          * Q3 un Q4 = 2025. gada attiecīgie mēneši × vidējais pieauguma temps (vidējais no 2024→2025 un 2025→2026).
+          * <strong>Fact</strong> = reālie 2026 dati.<br>
+          * <strong>Est</strong> = 2025. gada attiecīgie mēneši × vidējais pieauguma temps (vidējais no 2024→2025 un 2025→2026).<br>
+          * Q1/Q2 Est ļauj pārbaudīt modeļa precizitāti uz jau zināmiem datiem.
         </p>
       </div>
     </div>
@@ -185,12 +188,9 @@
       // Parse right side historical data (columns ~M onwards) for 2024 and 2025
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        // Look for a month name in the historical section (around index 12)
         if (row[12] && monthOrder.includes(row[12])) {
           const histMonth = row[12];
 
-          // Usually the next rows contain 2024 and 2025
-          // Pattern: header → 2024 row → 2025 row
           if (rows[i+1] && rows[i+1][12] === "2024") {
             const r = rows[i+1];
             temp2024[histMonth] = {
@@ -208,7 +208,6 @@
           }
           if (rows[i+2] && rows[i+2][12] === "2025") {
             const r = rows[i+2];
-            // Only overwrite if we don't already have better left-side data
             if (!temp2025[histMonth] || temp2025[histMonth].total === 0) {
               temp2025[histMonth] = {
                 month: histMonth,
@@ -226,7 +225,7 @@
           }
         }
 
-        // Also catch standalone historical blocks at the bottom
+        // Standalone historical blocks
         if (row[12] === "2024" && rows[i-1] && monthOrder.includes(rows[i-1][12])) {
           const histMonth = rows[i-1][12];
           const r = row;
@@ -267,7 +266,6 @@
       data2025 = Object.values(temp2025).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
       data2026 = Object.values(temp2026).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
 
-      // Calculate growth for display (2026 vs 2025)
       data2026.forEach(item => {
         const prev = data2025.find(m => m.month === item.month);
         if (prev) {
@@ -306,7 +304,7 @@
       renderEstimationBlock();
     }
 
-    // ========== IMPROVED FORECAST (uses 2024 + 2025 + 2026) ==========
+    // ========== FORECAST with Fact + Est for Q1 & Q2 ==========
     function renderForecast() {
       if (data2026.length === 0) return;
 
@@ -316,7 +314,7 @@
       types.forEach(t => {
         let rates = [];
 
-        // 2025 vs 2024 growth
+        // 2025 vs 2024
         data2025.forEach(m25 => {
           const m24 = data2024.find(m => m.month === m25.month);
           if (m24 && m24[t] > 0) {
@@ -324,7 +322,7 @@
           }
         });
 
-        // 2026 vs 2025 growth
+        // 2026 vs 2025
         data2026.forEach(m26 => {
           const m25 = data2025.find(m => m.month === m26.month);
           if (m25 && m25[t] > 0) {
@@ -332,18 +330,19 @@
           }
         });
 
-        // Average of all available rates (fallback 12% if none)
         growthRates[t] = rates.length > 0 
           ? rates.reduce((a, b) => a + b, 0) / rates.length 
           : 0.12;
       });
 
-      function getValue(month, type) {
-        // Prefer actual 2026 data
+      // Actual value (only for months that exist in 2026)
+      function getActual(month, type) {
         const actual = data2026.find(m => m.month === month);
-        if (actual) return actual[type] || 0;
+        return actual ? (actual[type] || 0) : 0;
+      }
 
-        // Otherwise forecast from 2025 using multi-year growth
+      // Estimated value = 2025 × multi-year growth
+      function getEstimate(month, type) {
         const prev = data2025.find(m => m.month === month);
         if (prev) return Math.round(prev[type] * (1 + growthRates[type]));
         return 0;
@@ -354,8 +353,11 @@
       const q3 = ["Jūlijs","Augusts","Septembris"];
       const q4 = ["Oktobris","Novembris","Decembris"];
 
-      function sumQuarter(months, type) {
-        return months.reduce((s, m) => s + getValue(m, type), 0);
+      function sumActual(months, type) {
+        return months.reduce((s, m) => s + getActual(m, type), 0);
+      }
+      function sumEstimate(months, type) {
+        return months.reduce((s, m) => s + getEstimate(m, type), 0);
       }
 
       const labels = [
@@ -369,21 +371,25 @@
 
       let html = '';
       labels.forEach(l => {
-        const q1v = sumQuarter(q1, l.key);
-        const q2v = sumQuarter(q2, l.key);
-        const q3v = sumQuarter(q3, l.key);
-        const q4v = sumQuarter(q4, l.key);
-        const year = q1v + q2v + q3v + q4v;
+        const q1Fact = sumActual(q1, l.key);
+        const q1Est  = sumEstimate(q1, l.key);
+        const q2Fact = sumActual(q2, l.key);
+        const q2Est  = sumEstimate(q2, l.key);
+        const q3Est  = sumEstimate(q3, l.key);
+        const q4Est  = sumEstimate(q4, l.key);
+        const yearEst = q1Est + q2Est + q3Est + q4Est;
 
         const isTotal = l.key === 'total';
         html += `
           <tr class="${isTotal ? 'font-bold bg-emerald-50 dark:bg-emerald-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}">
             <td class="py-3 px-2">${l.name}</td>
-            <td class="text-right py-3 px-2">${q1v.toLocaleString('lv-LV')}</td>
-            <td class="text-right py-3 px-2">${q2v.toLocaleString('lv-LV')}</td>
-            <td class="text-right py-3 px-2">${q3v.toLocaleString('lv-LV')}</td>
-            <td class="text-right py-3 px-2">${q4v.toLocaleString('lv-LV')}</td>
-            <td class="text-right py-3 px-2 text-emerald-600">${year.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2">${q1Fact.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2 text-blue-600">${q1Est.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2">${q2Fact.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2 text-blue-600">${q2Est.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2 text-amber-600">${q3Est.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2 text-amber-600">${q4Est.toLocaleString('lv-LV')}</td>
+            <td class="text-right py-3 px-2 text-emerald-600">${yearEst.toLocaleString('lv-LV')}</td>
           </tr>
         `;
       });
@@ -391,7 +397,7 @@
       document.getElementById("forecastBody").innerHTML = html;
     }
 
-    // ========== existing render functions ==========
+    // ========== existing functions (unchanged) ==========
     function renderDynamicSummary() {
       if (data2026.length === 0) return;
       const avgGrowth = data2026.reduce((sum, m) => sum + (m.growth || 0), 0) / data2026.length;
