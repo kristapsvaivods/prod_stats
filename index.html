@@ -43,11 +43,11 @@
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="summaryJCards"></div>
     </div>
 
-    <!-- NEW: Forecast Section -->
+    <!-- Forecast Section -->
     <div class="mb-10">
       <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">
-        Prognoze 2026 (Q1–Q4) 
-        <span class="text-sm font-normal text-gray-500 ml-2">balstīta uz Jan–Jūl pieauguma tempu</span>
+        Prognoze 2026 (Q1–Q4)
+        <span class="text-sm font-normal text-gray-500 ml-2">izmantojot 2024 + 2025 + 2026 datus</span>
       </h3>
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow overflow-x-auto">
         <table class="w-full text-sm" id="forecastTable">
@@ -64,7 +64,8 @@
           <tbody id="forecastBody" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
         </table>
         <p class="text-xs text-gray-500 mt-4">
-          * Q1 un Q2 = reālie dati. Q3 un Q4 = 2025. gada attiecīgie mēneši × vidējais pieauguma temps (Jan–Jūl 2026 vs 2025).
+          * Q1 un Q2 = reālie 2026 dati.<br>
+          * Q3 un Q4 = 2025. gada attiecīgie mēneši × vidējais pieauguma temps (vidējais no 2024→2025 un 2025→2026).
         </p>
       </div>
     </div>
@@ -139,7 +140,7 @@
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTiqN8TgiBSUIl-x6_cuitcwGRu8AH5wP1NHmzz7SiV9877X_BWq18ruwPT0ufK-U9GcQ173yp1Xbo1/pub?gid=2119936157&single=true&output=csv";
     const PRODUCTION_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT52Pe1HEPXC14H8qzwIan2TtEvpbX195ATc0RsSAFMM5bAlcMEcW3-y4R4q7AcuAzJMN3WXaHBQkiU/pub?gid=0&single=true&output=csv";
 
-    let data2026 = [], data2025 = [], productionData = [];
+    let data2024 = [], data2025 = [], data2026 = [], productionData = [];
     const monthOrder = ["Janvāris","Februāris","Marts","Aprīlis","Maijs","Jūnijs","Jūlijs","Augusts","Septembris","Oktobris","Novembris","Decembris"];
 
     async function loadData() {
@@ -158,9 +159,10 @@
 
     function parseCSV(csvText) {
       const rows = csvText.trim().split('\n').map(r => r.split(',').map(c => c.replace(/"/g,'').trim()));
-      const temp2026 = {}, temp2025 = {};
+      const temp2024 = {}, temp2025 = {}, temp2026 = {};
       let currentMonth = "";
 
+      // Parse left side (main 2025 / 2026 data)
       for (let row of rows) {
         if (monthOrder.includes(row[0])) currentMonth = row[0];
         if (row[0] === "2025" || row[0] === "2026") {
@@ -180,19 +182,34 @@
         }
       }
 
-      // Also try to collect historical 2025 data from the right side (columns M+)
-      // This is a best-effort parse of the mirrored months
+      // Parse right side historical data (columns ~M onwards) for 2024 and 2025
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
+        // Look for a month name in the historical section (around index 12)
         if (row[12] && monthOrder.includes(row[12])) {
           const histMonth = row[12];
-          // Next two rows usually contain 2024 and 2025
+
+          // Usually the next rows contain 2024 and 2025
+          // Pattern: header → 2024 row → 2025 row
           if (rows[i+1] && rows[i+1][12] === "2024") {
-            // skip 2024 for now
+            const r = rows[i+1];
+            temp2024[histMonth] = {
+              month: histMonth,
+              pkg250: parseFloat(r[13]) || 0,
+              pkg1kg: parseFloat(r[14]) || 0,
+              pkgBundza: parseFloat(r[15]) || 0,
+              pkg500: parseFloat(r[16]) || 0,
+              pkg3kg: parseFloat(r[17]) || 0,
+              total: 0
+            };
+            temp2024[histMonth].total = temp2024[histMonth].pkg250 + temp2024[histMonth].pkg1kg +
+                                       temp2024[histMonth].pkgBundza + temp2024[histMonth].pkg500 +
+                                       temp2024[histMonth].pkg3kg;
           }
           if (rows[i+2] && rows[i+2][12] === "2025") {
             const r = rows[i+2];
-            if (!temp2025[histMonth]) {
+            // Only overwrite if we don't already have better left-side data
+            if (!temp2025[histMonth] || temp2025[histMonth].total === 0) {
               temp2025[histMonth] = {
                 month: histMonth,
                 pkg250: parseFloat(r[13]) || 0,
@@ -202,17 +219,55 @@
                 pkg3kg: parseFloat(r[17]) || 0,
                 total: 0
               };
-              temp2025[histMonth].total = temp2025[histMonth].pkg250 + temp2025[histMonth].pkg1kg + 
-                                         temp2025[histMonth].pkgBundza + temp2025[histMonth].pkg500 + 
+              temp2025[histMonth].total = temp2025[histMonth].pkg250 + temp2025[histMonth].pkg1kg +
+                                         temp2025[histMonth].pkgBundza + temp2025[histMonth].pkg500 +
                                          temp2025[histMonth].pkg3kg;
             }
           }
         }
+
+        // Also catch standalone historical blocks at the bottom
+        if (row[12] === "2024" && rows[i-1] && monthOrder.includes(rows[i-1][12])) {
+          const histMonth = rows[i-1][12];
+          const r = row;
+          temp2024[histMonth] = {
+            month: histMonth,
+            pkg250: parseFloat(r[13]) || 0,
+            pkg1kg: parseFloat(r[14]) || 0,
+            pkgBundza: parseFloat(r[15]) || 0,
+            pkg500: parseFloat(r[16]) || 0,
+            pkg3kg: parseFloat(r[17]) || 0,
+            total: 0
+          };
+          temp2024[histMonth].total = temp2024[histMonth].pkg250 + temp2024[histMonth].pkg1kg +
+                                     temp2024[histMonth].pkgBundza + temp2024[histMonth].pkg500 +
+                                     temp2024[histMonth].pkg3kg;
+        }
+        if (row[12] === "2025" && rows[i-1] && monthOrder.includes(rows[i-1][12])) {
+          const histMonth = rows[i-1][12];
+          const r = row;
+          if (!temp2025[histMonth] || temp2025[histMonth].total === 0) {
+            temp2025[histMonth] = {
+              month: histMonth,
+              pkg250: parseFloat(r[13]) || 0,
+              pkg1kg: parseFloat(r[14]) || 0,
+              pkgBundza: parseFloat(r[15]) || 0,
+              pkg500: parseFloat(r[16]) || 0,
+              pkg3kg: parseFloat(r[17]) || 0,
+              total: 0
+            };
+            temp2025[histMonth].total = temp2025[histMonth].pkg250 + temp2025[histMonth].pkg1kg +
+                                       temp2025[histMonth].pkgBundza + temp2025[histMonth].pkg500 +
+                                       temp2025[histMonth].pkg3kg;
+          }
+        }
       }
 
-      data2026 = Object.values(temp2026).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+      data2024 = Object.values(temp2024).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
       data2025 = Object.values(temp2025).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+      data2026 = Object.values(temp2026).sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
 
+      // Calculate growth for display (2026 vs 2025)
       data2026.forEach(item => {
         const prev = data2025.find(m => m.month === item.month);
         if (prev) {
@@ -251,37 +306,49 @@
       renderEstimationBlock();
     }
 
-    // ========== NEW FORECAST FUNCTION ==========
+    // ========== IMPROVED FORECAST (uses 2024 + 2025 + 2026) ==========
     function renderForecast() {
       if (data2026.length === 0) return;
 
-      // Calculate average growth rates (Jan–Jul)
       const types = ['pkg250', 'pkg1kg', 'pkgBundza', 'pkg500', 'pkg3kg', 'total'];
       const growthRates = {};
 
       types.forEach(t => {
-        let sumGrowth = 0, count = 0;
-        data2026.forEach(m => {
-          const prev = data2025.find(p => p.month === m.month);
-          if (prev && prev[t] > 0) {
-            sumGrowth += (m[t] - prev[t]) / prev[t];
-            count++;
+        let rates = [];
+
+        // 2025 vs 2024 growth
+        data2025.forEach(m25 => {
+          const m24 = data2024.find(m => m.month === m25.month);
+          if (m24 && m24[t] > 0) {
+            rates.push((m25[t] - m24[t]) / m24[t]);
           }
         });
-        growthRates[t] = count > 0 ? sumGrowth / count : 0.15; // fallback 15%
+
+        // 2026 vs 2025 growth
+        data2026.forEach(m26 => {
+          const m25 = data2025.find(m => m.month === m26.month);
+          if (m25 && m25[t] > 0) {
+            rates.push((m26[t] - m25[t]) / m25[t]);
+          }
+        });
+
+        // Average of all available rates (fallback 12% if none)
+        growthRates[t] = rates.length > 0 
+          ? rates.reduce((a, b) => a + b, 0) / rates.length 
+          : 0.12;
       });
 
-      // Helper to get value for a month (2026 actual or forecast)
       function getValue(month, type) {
+        // Prefer actual 2026 data
         const actual = data2026.find(m => m.month === month);
         if (actual) return actual[type] || 0;
 
+        // Otherwise forecast from 2025 using multi-year growth
         const prev = data2025.find(m => m.month === month);
         if (prev) return Math.round(prev[type] * (1 + growthRates[type]));
         return 0;
       }
 
-      // Quarters
       const q1 = ["Janvāris","Februāris","Marts"];
       const q2 = ["Aprīlis","Maijs","Jūnijs"];
       const q3 = ["Jūlijs","Augusts","Septembris"];
@@ -324,7 +391,7 @@
       document.getElementById("forecastBody").innerHTML = html;
     }
 
-    // ========== existing functions (unchanged) ==========
+    // ========== existing render functions ==========
     function renderDynamicSummary() {
       if (data2026.length === 0) return;
       const avgGrowth = data2026.reduce((sum, m) => sum + (m.growth || 0), 0) / data2026.length;
